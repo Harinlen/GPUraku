@@ -1,0 +1,189 @@
+/*
+ * This file is part of GPUraku.
+ * 
+ * GPUraku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * GPUraku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with GPUraku.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef FLAC_CUDA_FRAME
+#define FLAC_CUDA_FRAME
+
+/*
+ * This file contains the function that related to the FLAC frames.
+ * Depends: 
+ *   - flac_cuda_utf8.cup
+ *   - flac_cuda_crc.cup
+ */
+
+__global__ void flac_cuda_find_frames(
+    uchar *data, size_t dataSize, 
+    size_t *framePos,
+    size_t lastPos,
+    size_t blockSize,
+    gruint64 threadCount,
+    gruint64 frameCount,
+    gruint8 streamChannels)
+{
+    //Calculate the core index.
+    int threadId=blockDim.x * blockIdx.x + threadIdx.x;
+    //Calculate the search area.
+    size_t startLength=blockSize*threadId;
+    gruint64 frameIndex, lastFrameIndex=0;
+    size_t utfLength, headerSize;
+    //Check area border.
+    if(startLength>lastPos)
+    {
+        //No need to search
+        return;
+    }
+    cudaCrcFunc crcFunc[16]={NULL, NULL, NULL, NULL,
+                             NULL, cudaCrcL5, cudaCrcL6, cudaCrcL7,
+                             cudaCrcL8, cudaCrcL9, cudaCrcL10, cudaCrcL11,
+                             cudaCrcL12, cudaCrcL13, cudaCrcL14, cudaCrcL15};
+    cudaUtfFunc utfFunc[8]={NULL, cudaUtfL0, cudaUtfL1, cudaUtfL2,
+                            cudaUtfL3, cudaUtfL4, cudaUtfL5, cudaUtfL6};
+    uchar *startPos=data+startLength, *endPos;
+    if(threadId<threadCount-1)
+    {
+        endPos=startPos+blockSize;
+    }
+    else
+    {
+        endPos=data+lastPos+2;
+        framePos[frameCount]=dataSize;
+    }
+    while(startPos < endPos)
+    {
+        //Check byte is 0xFF.
+        if(startPos[0]==0xFF && (startPos[1] & 0xFE)==0xF8 &&
+                (startPos[3] & 0x01)==0x00 &&
+                //Do further check.
+                (startPos[2] & 0xF0) && ((startPos[2] & 0x0F)!=0x0F) &&
+                ((startPos[3] & 0xF0)<0xB0) && ((startPos[3] & 0x0E)!=0x06) &&
+                ((startPos[3] & 0x0E)!=0x0E) && 
+                cudaChannel[(startPos[3] & 0xF0)>>4]<=streamChannels)
+        {
+            //No invalid value found, calculate the CRC-8 to check whether it 
+            //is frame or not.
+            utfLength=((startPos[4]==0xFE) ? 7 :
+                     (((startPos[4] & 0xFE)==0xFC) ? 6 :
+                     (((startPos[4] & 0xFC)==0xF8) ? 5 :
+                     (((startPos[4] & 0xF8)==0xF0) ? 4 :
+                     (((startPos[4] & 0xF0)==0xE0) ? 3 :
+                     (((startPos[4] & 0xE0)==0xC0) ? 2 : 1))))));
+            headerSize=4+utfLength+
+                    (((startPos[2] & 0xF0)==0x60)? 
+                        1 : 
+                        (((startPos[2] & 0xF0)==0x70)?2:0))+
+                    (((startPos[2] & 0x0F)==0x0C)?
+                        1 :
+                        (((startPos[2] & 0x0D)>0x0C)?2:0));
+            if(headerSize>4 && headerSize<16 && 
+                crcFunc[headerSize](cudaFlacCrc8Table, 
+                                    startPos)==startPos[headerSize])
+            {
+                frameIndex=utfFunc[utfLength](startPos+4);
+                if(lastFrameIndex==0 || 
+                    (frameIndex==lastFrameIndex+1 && 
+                        frameIndex < frameCount))
+                {
+                    lastFrameIndex=frameIndex;
+                    //Pass the CRC-8 test, we found a frame.
+                    framePos[utfFunc[utfLength](startPos+4)]=startPos-data;
+                }
+                //Skip the bytes(header + 2-bytes at the end).
+                //The ++ operation will add another one.
+                startPos+=headerSize+1;
+            }
+            else
+            {
+                //Skip 4 bytes that is definitly not correct.
+                startPos+=3;
+            }
+        }
+        //Move to next byte.
+        ++startPos;
+    }
+}
+
+__global__ void flac_cuda_decode_frames(
+    uchar *data, size_t *framePos,
+    gruint8 streamBitsPerSample,
+    size_t *frameSizes,
+    gruint64 frameCount,
+    CudaFrameDecode* decodeData)
+{
+    //Calculate the core index.
+    int threadId=blockDim.x * blockIdx.x + threadIdx.x;
+    if(threadId >= frameCount)
+    {
+        return;
+    }
+    CudaFrameDecode frameData;
+    //This index is the frame id we want, decode the frame header.
+    data+=framePos[threadId];
+    gruint32 sampleRate=cudaSampleRate[data[2] & 0x0F];
+    frameData.blockSize=cudaBlockSize[(data[2] & 0xF0)>>4];
+    frameData.channel=cudaChannel[(data[3] & 0xF0)>>4];
+    frameData.channelAssignment=cudaChannelAss[(data[3] & 0xF0)>>4],
+    frameData.bitsPerSample=cudaBps[(data[3] & 0x0E)>>1];
+    //Calculate the utf-8 length.
+    gruint8 utfLength=((data[4]==0xFE) ? 7 :
+                     (((data[4] & 0xFE)==0xFC) ? 6 :
+                     (((data[4] & 0xFC)==0xF8) ? 5 :
+                     (((data[4] & 0xF8)==0xF0) ? 4 :
+                     (((data[4] & 0xF0)==0xE0) ? 3 :
+                     (((data[4] & 0xE0)==0xC0) ? 2 : 1))))));
+    //Check for the block size fetch value.
+    data+=(4+utfLength);
+    if(frameData.blockSize==8)
+    {
+        // 8-bit
+        frameData.blockSize=(gruint32)data[0]+1;
+        ++data;
+    }
+    else if(frameData.blockSize==16)
+    {
+        // 16-bit BE
+        frameData.blockSize=TO_UINT16BE(data);
+        ++frameData.blockSize;
+    }
+    //Save the block size, which is the sample size.
+    frameSizes[threadId]=frameData.blockSize;
+    //Check for sample rate fetch mark value.
+    if(sampleRate==8001)
+    {
+        //Fetch 8-bit, unit kHz.
+        ++data;
+    }
+    else if(sampleRate==16 || sampleRate==160)
+    {
+        //Fetch 16-bit, unit Hz.
+        data+=2;
+    }
+    //Check bits per sample.
+    if(frameData.bitsPerSample==0)
+    {
+        frameData.bitsPerSample=streamBitsPerSample;
+    }
+    //Skip CRC-8.
+    ++data;
+    //Create the bitstream for decoding.
+    frameData.bitStream.data=data;
+    frameData.bitStream.cache=(*data);
+    frameData.bitStream.bitpos=0;
+    //Write the frame data to the global memory.
+    decodeData[threadId]=frameData;
+}
+
+#endif // FLAC_CUDA_FRAME

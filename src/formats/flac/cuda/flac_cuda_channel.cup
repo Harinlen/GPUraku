@@ -1,0 +1,211 @@
+/*
+ * This file is part of GPUraku.
+ * 
+ * GPUraku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * GPUraku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with GPUraku.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef FLAC_CUDA_CHANNEL
+#define FLAC_CUDA_CHANNEL
+
+__global__ void flac_cuda_restore_signal(
+    CudaFrameDecode *decodeData, 
+    CudaSubFrameType *subFrame,
+    gruint64 frameCount)
+{
+    //Calculate the core index.
+    int threadId=blockDim.x * blockIdx.x + threadIdx.x;
+    if(threadId >= frameCount)
+    {
+        return;
+    }
+    //Get the sub frame type.
+    CudaSubFrameType subFrameType=subFrame[threadId];
+    gruint32 blockSize=decodeData[threadId].blockSize;
+    gruint32 i, j;
+    grint32 sum, cacheBuf[33];
+    //Check sub frame type.
+    if(subFrameType.type==FLAC_SUBFRAME_VERBATIM)
+    {
+        //No need to decode.
+        return;
+    }
+    if(subFrameType.type==FLAC_SUBFRAME_CONSTANT)
+    {
+        //Copy the first data to the rest of the samples.
+        for(i=1; i<blockSize; ++i)
+        {
+            subFrameType.pcm[i]=subFrameType.pcm[0];
+        }
+        return;
+    }
+    if(subFrameType.type==FLAC_SUBFRAME_FIXED)
+    {
+        //Check order, apply different algorithm.
+        if(subFrameType.order==0)
+        {
+            return;
+        }
+        if(subFrameType.order==1)
+        {
+            //Apply the algorithm.
+            i=1;
+            while(i<blockSize)
+            {
+                //Calculate the result.
+                subFrameType.pcm[i]+=subFrameType.pcm[i-1];
+                ++i;
+            }
+        }
+        else if(subFrameType.order==2)
+        {
+            cacheBuf[0]=subFrameType.pcm[1]-subFrameType.pcm[0];
+            //Apply the algorithm.
+            i=2;
+            while(i<blockSize)
+            {
+                //Calculate the result.
+                subFrameType.pcm[i]=(cacheBuf[0]+=subFrameType.pcm[i])+
+                                    subFrameType.pcm[i-1];
+                ++i;
+            }
+        }
+        else if(subFrameType.order==3)
+        {
+            //Apply the algorithm.
+            cacheBuf[0]=subFrameType.pcm[2]-(subFrameType.pcm[1]<<1)+
+                        subFrameType.pcm[0];
+            cacheBuf[1]=subFrameType.pcm[2]-subFrameType.pcm[1];
+            i=3;
+            while(i<blockSize)
+            {
+                subFrameType.pcm[i]=(cacheBuf[1]+=
+                                    (cacheBuf[0]+=subFrameType.pcm[i]))+
+                                    subFrameType.pcm[i-1];
+                ++i;
+            }
+        }
+        else if(subFrameType.order==4)
+        {
+            //Apply the algorithm.
+            cacheBuf[0]=subFrameType.pcm[3]-(subFrameType.pcm[2]<<1)-
+                        subFrameType.pcm[2]+(subFrameType.pcm[1]<<1)+
+                        subFrameType.pcm[1]-subFrameType.pcm[0];
+            cacheBuf[1]=subFrameType.pcm[3]-(subFrameType.pcm[2]<<1)+
+                        subFrameType.pcm[1];
+            cacheBuf[2]=subFrameType.pcm[3]-subFrameType.pcm[2];
+            i=4;
+            while(i<blockSize)
+            {
+                subFrameType.pcm[i]=(cacheBuf[2]+=
+                                    (cacheBuf[1]+=
+                                    (cacheBuf[0]+=subFrameType.pcm[i])))+
+                                    subFrameType.pcm[i-1];
+                ++i;
+            }
+        } 
+        return;
+    }
+    //LPC.
+    for(i=0; i<subFrameType.order; ++i)
+    {
+        cacheBuf[i]=subFrameType.pcm[i];
+    }
+    //Loop for all the sample size.
+    for(i=subFrameType.order; i<blockSize; ++i)
+    {
+        sum=0;
+        //Calculate the difference.
+        for(j=0; j<subFrameType.order; ++j)
+        {
+            sum+=subFrameType.coefs[j]*cacheBuf[j];
+            cacheBuf[j]=cacheBuf[j+1];
+        }
+        //Apply the different, set the value to samples.
+        cacheBuf[subFrameType.order]=
+            (subFrameType.pcm[i]+=(sum>>subFrameType.shift));
+    }
+}
+
+__device__ void flac_cuda_left_assignment(
+    grint32 *leftChannel, grint32 *rightChannel, gruint32 blockSize)
+{
+    //The right channel is not the original data.
+    for(gruint32 i=0; i<blockSize; ++i)
+    {
+        rightChannel[i]=leftChannel[i]-rightChannel[i];
+    }
+}
+
+__device__ void flac_cuda_right_assignment(
+    grint32 *leftChannel, grint32 *rightChannel, gruint32 blockSize)
+{
+    //The left channel is not the original data.
+    for(gruint32 i=0; i<blockSize; ++i)
+    {
+        leftChannel[i]+=rightChannel[i];
+    }
+}
+
+__device__ void flac_cuda_mid_assignment(
+    grint32 *leftChannel, grint32 *rightChannel, gruint32 blockSize)
+{
+    //The left channel is not the original data.
+    grint32 mid, side;
+    for(gruint32 i=0; i<blockSize; ++i)
+    {
+        mid=leftChannel[i]<<1;
+        side=rightChannel[i];
+        mid |= side & 1;
+        leftChannel[i]=(mid+side)>>1;
+        rightChannel[i]=(mid-side)>>1;
+    }
+}
+
+
+__global__ void flac_cuda_decorrelate_interchannel(
+    CudaFrameDecode *decodeData,
+    gruint64 frameCount)
+{
+    //Calculate the core index.
+    int threadId=blockDim.x * blockIdx.x + threadIdx.x;
+    if(threadId >= frameCount)
+    {
+        return;
+    }
+    //Get the sub frame type.
+    gruint8 channelAssignment=decodeData[threadId].channelAssignment;
+    gruint32 blockSize=decodeData[threadId].blockSize;
+    if(channelAssignment==FLAC_CHANNEL_INDEPENDENT)
+    {
+        //No need to do any thing.
+        return;
+    }
+    //Get the channel pointer.
+    grint32 *left=decodeData[threadId].channelPcm[0],
+            *right=decodeData[threadId].channelPcm[1];
+    if(channelAssignment==FLAC_CHANNEL_LEFT_ASSIGNMENT)
+    {
+        flac_cuda_left_assignment(left, right, blockSize);
+        return;
+    }
+    if(channelAssignment==FLAC_CHANNEL_MID_ASSIGNMENT)
+    {
+        flac_cuda_mid_assignment(left, right, blockSize);
+        return;
+    }
+    //FLAC_CHANNEL_RIGHT_ASSIGNMENT
+    flac_cuda_right_assignment(left, right, blockSize);
+}
+
+#endif // FLAC_CUDA_CHANNEL

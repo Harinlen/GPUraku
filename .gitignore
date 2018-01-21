@@ -1,0 +1,24 @@
+# CMake Caches
+cmake_install.cmake
+CMakeFiles
+CMakeCache.txt
+Makefile
+CMakeLists.txt.user
+
+# Binaries.
+bin
+
+# C++ objects and libs
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.dll
+*.dylib
+*.pro.user
+
+#Mac Spotlight Search
+.DS_Store

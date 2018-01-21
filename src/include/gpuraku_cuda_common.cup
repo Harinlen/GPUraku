@@ -1,0 +1,38 @@
+/*
+ * This file is part of GPUraku.
+ * 
+ * GPUraku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * GPUraku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with GPUraku.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef GPURAKU_CUDA_COMMON
+#define GPURAKU_CUDA_COMMON
+
+/*
+ * Common CUDA function that would be used in all kinds of CUDA cu
+ * files.
+ */
+
+#define gr_cuda_malloc(target, size) \
+    (cudaMalloc(&(target), size) == cudaSuccess)
+
+#define gr_cuda_memcpy_to_device(dest, src, size) \
+    (cudaMemcpy(dest, src, size, cudaMemcpyHostToDevice) == cudaSuccess)
+
+#define gr_cuda_memcpy_to_host(dest, src, size) \
+    (cudaMemcpy(dest, src, size, cudaMemcpyDeviceToHost) == cudaSuccess)
+
+#define gr_cuda_free(target) \
+    cudaFree(&(target)); (*target)=NULL
+
+#endif // GPURAKU_CUDA_COMMON

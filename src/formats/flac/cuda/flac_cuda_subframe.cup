@@ -1,0 +1,220 @@
+/*
+ * This file is part of GPUraku.
+ * 
+ * GPUraku is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * GPUraku is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with GPUraku.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef FLAC_CUDA_SUBFRAME
+#define FLAC_CUDA_SUBFRAME
+
+/*
+ * This file stores all the functions for decoding the sub frame.
+ * Depends:
+ *   - flac_cuda_bitstream.cup
+ */
+
+__device__ __forceinline__ void flac_cuda_decode_residual(
+    CudaBitStream *streamIn,
+    gruint32 blockSize,
+    gruint8 order,
+    grint32 *pcm,
+    cudaUIntFunc *readerList)
+{
+    //Do a hard copy of the stream.
+    CudaBitStream stream=*streamIn;
+    //Read the data of the stream.
+    gruint8 partitionOrder;
+    BitReadDBit(stream, partitionOrder);
+    BitReadHByte(stream, partitionOrder);
+    gruint32 partitions=(1 << partitionOrder),
+             otherPartitionSize=blockSize >> partitionOrder, 
+             partitionSamples=(partitionOrder==0)?
+                (blockSize-order):
+                (blockSize >> partitionOrder)-order, 
+            ones, i, lsbs;
+    grint32 x;
+    gruint8 riceParameter;
+    cudaUIntFunc riceReader;
+    //Read residuals.
+    for(i=0; i<partitions; ++i)
+    {
+        //Read rice parameter.
+        BitReadHByte(stream, riceParameter);
+        riceReader=readerList[riceParameter];
+        if(riceParameter==0x0F)
+        {
+            return;
+        }
+        //Check the rice parameter.
+        if(riceParameter)
+        {
+            //Loop and read the data.
+            while(partitionSamples--)
+            {
+                //Read the rice encoding data.
+                BitReadRice0(stream, ones);
+                //Read the data.
+                lsbs=riceReader(stream);
+                //Process the residual.
+                x=(ones << riceParameter) | lsbs;
+                //For the odd number, it is should be the minus number.
+                (*pcm++)=(x&1) ? (-((grint32)(x>>1))-1) : (grint32)(x>>1);
+            }
+        }
+        else
+        {
+            //Loop and read the data.
+            while(partitionSamples--)
+            {
+                //Read the rice encoding data.
+                BitReadRice0(stream, ones);
+                //Calculate the residual.
+                (*pcm++)=(grint32)(ones>>1) ^ -(grint32)(ones & 1);
+            }
+        }
+        //Update the partition samples.
+        partitionSamples=otherPartitionSize;
+    }
+    //Write the stream data back.
+    (*streamIn)=stream;
+}
+
+__global__ void flac_cuda_decode_sub_frame(
+    CudaFrameDecode *decodeData,
+    gruint8 channel,
+    size_t frameLength,
+    size_t channelLength,
+    gruint64 frameCount,
+    CudaSubFrameType *subFrame,
+    grint32 *pcm)
+{
+    //Calculate the core index.
+    int threadId=blockDim.x * blockIdx.x + threadIdx.x;
+    if(threadId >= frameCount)
+    {
+        return;
+    }
+    //Get the decode data.
+    CudaBitStream stream=decodeData[threadId].bitStream;
+    CudaSubFrameType subFrameType;
+    //Read the first byte as the sub frame header.
+    gruint32 blockSize=decodeData[threadId].blockSize;
+    gruint8 header, bitPerSample=decodeData[threadId].bitsPerSample,
+            channelAssignment=decodeData[threadId].channelAssignment;
+    cudaUIntFunc readerList[33]=
+        {GRReadUInt0,  GRReadUInt1,  GRReadUInt2,  GRReadUInt3,  
+         GRReadUInt4,  GRReadUInt5,  GRReadUInt6,  GRReadUInt7,
+         GRReadUInt8,  GRReadUInt9,  GRReadUInt10, GRReadUInt11, 
+         GRReadUInt12, GRReadUInt13, GRReadUInt14, GRReadUInt15,
+         GRReadUInt16, GRReadUInt17, GRReadUInt18, GRReadUInt19, 
+         GRReadUInt20, GRReadUInt21, GRReadUInt22, GRReadUInt23,
+         GRReadUInt24, GRReadUInt25, NULL,         NULL, 
+         NULL,         NULL,         NULL,         NULL, 
+         NULL};
+    pcm+=threadId*(frameLength)+channel*channelLength;
+    subFrameType.pcm=pcm;
+    //Backup channel pcm pointer.
+    if(channel<2)
+    {
+        decodeData[threadId].channelPcm[channel]=pcm;
+    }
+    BitReadByte(stream, header);
+    //Check channel.
+    if(((channelAssignment==FLAC_CHANNEL_LEFT_ASSIGNMENT ||
+         channelAssignment==FLAC_CHANNEL_MID_ASSIGNMENT) && 
+        channel==1) ||
+       (channelAssignment==FLAC_CHANNEL_RIGHT_ASSIGNMENT &&
+        channel==0))
+    {
+        //Increase the bps.
+        ++bitPerSample;
+    }
+    //Get the number reader.
+    cudaUIntFunc numReader=readerList[bitPerSample];
+    if(numReader==NULL)
+    {
+        return;
+    }
+    grint32 mask=(1<<(bitPerSample-1));
+    //Parse the header, check its type.
+    header=(header & 0x7E)>>1;
+    if(header==0x00)
+    {
+        //Constant.
+        subFrameType.type=FLAC_SUBFRAME_CONSTANT;
+        (*pcm)=(numReader(stream)^mask)-mask;
+    }
+    else if(header==0x01)
+    {
+        //Verbatim.
+        subFrameType.type=FLAC_SUBFRAME_VERBATIM;
+        //Loop, and read block size times data.
+        while(blockSize--)
+        {
+            //Read the verbatim data.
+            (*pcm++)=(numReader(stream)^mask)-mask;
+        }
+    }
+    else if((header & 0x38)==0x08)
+    {
+        //Fixed.
+        subFrameType.type=FLAC_SUBFRAME_FIXED;
+        subFrameType.order=header & 0x07;
+        // Read the warm up samples.
+        for(gruint8 i=0; i<subFrameType.order; ++i)
+        {
+            //Save the warm-up sample data.
+            (*pcm++)=(numReader(stream)^mask)-mask;
+        }
+        //Read residuals.
+        flac_cuda_decode_residual(&stream, blockSize, subFrameType.order, pcm, 
+                                  readerList);
+    }
+    else if((header & 0x20)==0x20)
+    {
+        //LPC.
+        subFrameType.type=FLAC_SUBFRAME_LPC;
+        subFrameType.order=(header & 0x1F)+1;
+        
+        gruint8 i, precision;
+        // Read the warm up samples.
+        for(i=0; i<subFrameType.order; ++i)
+        {
+            //Save the warm-up sample data.
+            (*pcm++)=(numReader(stream)^mask)-mask;
+        }
+        //Read the precision.
+        BitReadHByte(stream, precision);
+        ++precision;
+        //Read the shift.
+        subFrameType.shift=GRReadUInt5(stream);
+        numReader=readerList[precision];
+        //Read predictor coefficients.
+        mask=(1<<(precision-1));
+        for(i=0; i<subFrameType.order; ++i)
+        {
+            //Save the predictor coefficients.
+            subFrameType.coefs[i]=(numReader(stream)^mask)-mask;
+        }
+        //Read residuals.
+        flac_cuda_decode_residual(&stream, blockSize, subFrameType.order, pcm, 
+                                  readerList);
+    }
+    //Update the subframe data.
+    subFrame[threadId]=subFrameType;
+    //Update the stream info.
+    decodeData[threadId].bitStream=stream;
+}
+
+#endif // FLAC_CUDA_SUBFRAME
