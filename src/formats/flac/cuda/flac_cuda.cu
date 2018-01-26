@@ -192,7 +192,9 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
         flacUser->searchSize, 
         flacUser->frameCount, 
         flacUser->frameCount, 
-        flacUser->streamInfo.channels);
+        flacUser->streamInfo.sampleRate, 
+        flacUser->streamInfo.channels, 
+        flacUser->streamInfo.bitsPerSample);
     //So now, we have a table which marks all the frame position.
     //Decode the frame header, initialized the bit stream to the start position 
     //of the sub frame.

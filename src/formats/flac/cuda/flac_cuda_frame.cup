@@ -32,14 +32,14 @@ __global__ void flac_cuda_find_frames(
     size_t blockSize,
     gruint64 threadCount,
     gruint64 frameCount,
-    gruint8 streamChannels)
+    gruint32 streamSampleRate,
+    gruint8 streamChannels,
+    gruint8 streamBps)
 {
     //Calculate the core index.
     int threadId=blockDim.x * blockIdx.x + threadIdx.x;
     //Calculate the search area.
     size_t startLength=blockSize*threadId;
-    gruint64 frameIndex, lastFrameIndex=0;
-    size_t utfLength, headerSize;
     //Check area border.
     if(startLength>lastPos)
     {
@@ -62,53 +62,65 @@ __global__ void flac_cuda_find_frames(
         endPos=data+lastPos+2;
         framePos[frameCount]=dataSize;
     }
+    gruint64 frameIndex;
+    gruint32 frameSampleRate;
+    gruint8 frameBps, frameSampleRateLength;
+    size_t utfLength, headerSize;
     while(startPos < endPos)
     {
-        //Check byte is 0xFF.
+        //Check for the sync code.
         if(startPos[0]==0xFF && (startPos[1] & 0xFE)==0xF8 &&
-                (startPos[3] & 0x01)==0x00 &&
-                //Do further check.
-                (startPos[2] & 0xF0) && ((startPos[2] & 0x0F)!=0x0F) &&
-                ((startPos[3] & 0xF0)<0xB0) && ((startPos[3] & 0x0E)!=0x06) &&
-                ((startPos[3] & 0x0E)!=0x0E) && 
-                cudaChannel[(startPos[3] & 0xF0)>>4]<=streamChannels)
+            (startPos[3] & 0x01)==0x00 &&
+            //Invalid value check.
+            (startPos[2] & 0xF0) && (startPos[2] & 0x0F)!=0x0F &&
+            cudaChannel[(startPos[3]&0xF0)>>4]==streamChannels)
         {
-            //No invalid value found, calculate the CRC-8 to check whether it 
-            //is frame or not.
-            utfLength=((startPos[4]==0xFE) ? 7 :
-                     (((startPos[4] & 0xFE)==0xFC) ? 6 :
-                     (((startPos[4] & 0xFC)==0xF8) ? 5 :
-                     (((startPos[4] & 0xF8)==0xF0) ? 4 :
-                     (((startPos[4] & 0xF0)==0xE0) ? 3 :
-                     (((startPos[4] & 0xE0)==0xC0) ? 2 : 1))))));
-            headerSize=4+utfLength+
-                    (((startPos[2] & 0xF0)==0x60)? 
-                        1 : 
-                        (((startPos[2] & 0xF0)==0x70)?2:0))+
-                    (((startPos[2] & 0x0F)==0x0C)?
-                        1 :
-                        (((startPos[2] & 0x0D)>0x0C)?2:0));
-            if(headerSize>4 && headerSize<16 && 
-                crcFunc[headerSize](cudaFlacCrc8Table, 
-                                    startPos)==startPos[headerSize])
+            frameBps=cudaBps[(startPos[3]&0x0E)>>1];
+            if(frameBps==0 || frameBps==streamBps)
             {
+                //Read UTF-8 length.
+                //No invalid value found, calculate the CRC-8 to check whether it is frame or not.
+                utfLength= (startPos[4] < 0xC0) ? 1 :
+                          ((startPos[4] < 0xE0) ? 2 :
+                          ((startPos[4] < 0xF0) ? 3 :
+                          ((startPos[4] < 0xF8) ? 4 : 
+                          ((startPos[4] < 0xFC) ? 5 : 
+                          ((startPos[4] < 0xFE) ? 6 : 7)))));
                 frameIndex=utfFunc[utfLength](startPos+4);
-                if(lastFrameIndex==0 || 
-                    (frameIndex==lastFrameIndex+1 && 
-                        frameIndex < frameCount))
+                if(frameIndex<frameCount)
                 {
-                    lastFrameIndex=frameIndex;
-                    //Pass the CRC-8 test, we found a frame.
-                    framePos[utfFunc[utfLength](startPos+4)]=startPos-data;
+                    //Calculate the sample rate.
+                    frameSampleRate=cudaSampleRate[startPos[2] & 0x0F];
+                    frameSampleRateLength=(((startPos[2] & 0x0F)==0x0C)?1:(((startPos[2] & 0x0D)>0x0C)?2:0));
+                    headerSize=4+utfLength+
+                    (((startPos[2] & 0xF0)==0x60)?1:(((startPos[2] & 0xF0)==0x70)?2:0));
+                    //Calculate CRC-8 check.
+                    if(frameSampleRateLength==1)
+                    {
+                        frameSampleRate=startPos[headerSize];
+                    }
+                    else if(frameSampleRateLength==2)
+                    {
+                        frameSampleRate=(startPos[headerSize]<<8 | startPos[headerSize+1]);
+                    }
+                    //Compare the sample rate and CRC-8 result.
+                    if(frameSampleRate==streamSampleRate && 
+                        crcFunc[headerSize](cudaFlacCrc8Table, startPos)==startPos[headerSize])
+                    {
+                        //Pass the CRC-8 test, we found a frame.
+                        framePos[frameIndex]=startPos-data;
+                        //Skip the bytes.
+                        startPos+=headerSize+1;
+                    }
+                    else
+                    {
+                        startPos+=headerSize-1;
+                    }
                 }
-                //Skip the bytes(header + 2-bytes at the end).
-                //The ++ operation will add another one.
-                startPos+=headerSize+1;
-            }
-            else
-            {
-                //Skip 4 bytes that is definitly not correct.
-                startPos+=3;
+                else
+                {
+                    startPos+=3;
+                }
             }
         }
         //Move to next byte.

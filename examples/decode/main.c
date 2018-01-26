@@ -30,7 +30,7 @@
 #define print_error_message(errorInfo, exeName) \
     printf("\n%s: %s\n", exeName, errorInfo);
 
-inline long long getSystemTime()
+static inline long long getSystemTime()
 {
     struct timeb t;
     ftime(&t);

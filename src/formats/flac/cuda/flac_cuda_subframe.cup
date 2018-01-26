@@ -205,7 +205,9 @@ __global__ void flac_cuda_decode_sub_frame(
         for(i=0; i<subFrameType.order; ++i)
         {
             //Save the predictor coefficients.
-            subFrameType.coefs[i]=(numReader(stream)^mask)-mask;
+            //Notice: in reverse way to store all the coefs here.
+            subFrameType.coefs[subFrameType.order-i-1]=
+                (numReader(stream)^mask)-mask;
         }
         //Read residuals.
         flac_cuda_decode_residual(&stream, blockSize, subFrameType.order, pcm, 
