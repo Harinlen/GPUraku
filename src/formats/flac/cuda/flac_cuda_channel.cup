@@ -132,7 +132,7 @@ __global__ void flac_cuda_restore_signal(
             cacheBuf[j]=cacheBuf[j+1];
         }
         //Apply the different, set the value to samples.
-        cacheBuf[subFrameType.order]=
+        cacheBuf[subFrameType.order-1]=
             (subFrameType.pcm[i]+=(sum>>subFrameType.shift));
     }
 }
@@ -170,9 +170,8 @@ __device__ void flac_cuda_mid_assignment(
     grint32 mid, side;
     for(gruint32 i=0; i<blockSize; ++i)
     {
-        mid=leftChannel[i]<<1;
         side=rightChannel[i];
-        mid |= side & 1;
+        mid= (leftChannel[i]<<1) | (side & 1);
         leftChannel[i]=(mid+side)>>1;
         rightChannel[i]=(mid-side)>>1;
     }
