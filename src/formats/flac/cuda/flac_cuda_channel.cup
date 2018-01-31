@@ -21,7 +21,7 @@
 __global__ void flac_cuda_restore_signal(
     CudaFrameDecode *decodeData, 
     CudaSubFrameType *subFrame,
-    gruint64 frameCount)
+    gruint32 frameCount)
 {
     //Calculate the core index.
     int threadId=blockDim.x * blockIdx.x + threadIdx.x;
@@ -180,7 +180,7 @@ __device__ void flac_cuda_mid_assignment(
 
 __global__ void flac_cuda_decorrelate_interchannel(
     CudaFrameDecode *decodeData,
-    gruint64 frameCount)
+    gruint32 frameCount)
 {
     //Calculate the core index.
     int threadId=blockDim.x * blockIdx.x + threadIdx.x;

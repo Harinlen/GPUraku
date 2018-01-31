@@ -23,45 +23,45 @@
  */
 
 // This type describes one of the following function.
-typedef gruint64 (*cudaUtfFunc)(uchar *);
+typedef gruint32 (*cudaUtfFunc)(uchar *);
 
-__device__ __inline__ gruint64 cudaUtfL0(uchar *pos)
+__device__ __inline__ gruint32 cudaUtfL0(uchar *pos)
 {
     return pos[0];
 }
 
-__device__ __inline__ gruint64 cudaUtfL1(uchar *pos)
+__device__ __inline__ gruint32 cudaUtfL1(uchar *pos)
 {
     return (((pos[0] & 0x1F) << 6)  | (pos[1] & 0x3F));
 }
 
-__device__ __inline__ gruint64 cudaUtfL2(uchar *pos)
+__device__ __inline__ gruint32 cudaUtfL2(uchar *pos)
 {
     return (((pos[0] & 0x0F) << 12) | ((pos[1] & 0x3F) << 6) |
              (pos[2] & 0x3F));
 }
 
-__device__ __inline__ gruint64 cudaUtfL3(uchar *pos)
+__device__ __inline__ gruint32 cudaUtfL3(uchar *pos)
 {
     return  (((pos[0] & 0x07) << 18) | ((pos[1] & 0x3F) << 12) |
              ((pos[2] & 0x3F) << 6 ) | (pos[3] & 0x3F));
 }
 
-__device__ __inline__ gruint64 cudaUtfL4(uchar *pos)
+__device__ __inline__ gruint32 cudaUtfL4(uchar *pos)
 {
     return (((gruint64)(pos[0] & 0x03) << 24) | ((pos[1] & 0x3F) << 18) |
             ((pos[2] & 0x3F) << 12) | ((pos[3] & 0x3F) << 6 ) |
              (pos[4] & 0x3F));
 }
 
-__device__ __inline__ gruint64 cudaUtfL5(uchar *pos)
+__device__ __inline__ gruint32 cudaUtfL5(uchar *pos)
 {
     return (((gruint64)(pos[0] & 0x01) << 30) | ((pos[1] & 0x3F) << 24) |
             ((pos[2] & 0x3F) << 18) | ((pos[3] & 0x3F) << 12) |
             ((pos[4] & 0x3F) << 6 ) |  (pos[5] & 0x3F));
 }
 
-__device__ __inline__ gruint64 cudaUtfL6(uchar *pos)
+__device__ __inline__ gruint32 cudaUtfL6(uchar *pos)
 {
     return (((gruint64)(pos[1] & 0x3F) << 30) | ((pos[2] & 0x3F) << 24) |
               ((pos[3] & 0x3F) << 18) | ((pos[4] & 0x3F) << 12) |

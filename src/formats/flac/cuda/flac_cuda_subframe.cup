@@ -95,7 +95,7 @@ __global__ void flac_cuda_decode_sub_frame(
     gruint8 channel,
     size_t frameLength,
     size_t channelLength,
-    gruint64 frameCount,
+    gruint32 frameCount,
     CudaSubFrameType *subFrame,
     grint32 *pcm)
 {

@@ -30,12 +30,37 @@ __global__ void flac_cuda_find_frames(
     size_t *framePos,
     size_t lastPos,
     size_t blockSize,
-    gruint64 threadCount,
-    gruint64 frameCount,
+    gruint32 threadCount,
+    gruint32 frameCount,
     gruint32 streamSampleRate,
     gruint8 streamChannels,
     gruint8 streamBps)
 {
+    __shared__ cudaUtfFunc utfFunc[8];
+    __shared__ cudaCrcFunc crcFunc[16];
+    if(threadIdx.x==0)
+    {
+        utfFunc[1]=cudaUtfL0;
+        utfFunc[2]=cudaUtfL1;
+        utfFunc[3]=cudaUtfL2;
+        utfFunc[4]=cudaUtfL3;
+        utfFunc[5]=cudaUtfL4;
+        utfFunc[6]=cudaUtfL5;
+        utfFunc[7]=cudaUtfL6;
+        crcFunc[5]=cudaCrcL5; 
+        crcFunc[6]=cudaCrcL6; 
+        crcFunc[7]=cudaCrcL7;
+        crcFunc[8]=cudaCrcL8; 
+        crcFunc[9]=cudaCrcL9; 
+        crcFunc[10]=cudaCrcL10; 
+        crcFunc[11]=cudaCrcL11;
+        crcFunc[12]=cudaCrcL12; 
+        crcFunc[13]=cudaCrcL13; 
+        crcFunc[14]=cudaCrcL14; 
+        crcFunc[15]=cudaCrcL15;
+    }
+    //Sync the threads for allocating the functions.
+    __syncthreads();
     //Calculate the core index.
     int threadId=blockDim.x * blockIdx.x + threadIdx.x;
     //Calculate the search area.
@@ -46,12 +71,6 @@ __global__ void flac_cuda_find_frames(
         //No need to search
         return;
     }
-    cudaCrcFunc crcFunc[16]={NULL, NULL, NULL, NULL,
-                             NULL, cudaCrcL5, cudaCrcL6, cudaCrcL7,
-                             cudaCrcL8, cudaCrcL9, cudaCrcL10, cudaCrcL11,
-                             cudaCrcL12, cudaCrcL13, cudaCrcL14, cudaCrcL15};
-    cudaUtfFunc utfFunc[8]={NULL, cudaUtfL0, cudaUtfL1, cudaUtfL2,
-                            cudaUtfL3, cudaUtfL4, cudaUtfL5, cudaUtfL6};
     uchar *startPos=data+startLength, *endPos;
     if(threadId<threadCount-1)
     {
@@ -62,8 +81,7 @@ __global__ void flac_cuda_find_frames(
         endPos=data+lastPos+2;
         framePos[frameCount]=dataSize;
     }
-    gruint64 frameIndex;
-    gruint32 frameSampleRate;
+    gruint32 frameIndex, frameSampleRate;
     gruint8 frameBps, frameSampleRateLength;
     size_t utfLength, headerSize;
     while(startPos < endPos)
@@ -132,7 +150,7 @@ __global__ void flac_cuda_decode_frames(
     uchar *data, size_t *framePos,
     gruint8 streamBitsPerSample,
     size_t *frameSizes,
-    gruint64 frameCount,
+    gruint32 frameCount,
     CudaFrameDecode* decodeData)
 {
     //Calculate the core index.

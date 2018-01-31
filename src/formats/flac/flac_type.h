@@ -43,7 +43,7 @@ typedef struct GRFlacCuda GRFlacCuda;
 typedef struct GRFlacDecodeUser
 {
     FlacStreamInfo  streamInfo;      // FLAC stream info.
-    gruint64        frameCount;      // Entire frame counts.
+    gruint32        frameCount;      // Entire frame counts.
     size_t          frameSizeLength; // Size of frame length array.
     size_t          frameLength;     // Length of one frame.
     size_t          pcmSize;         // Size of PCM sample array.

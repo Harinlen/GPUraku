@@ -175,6 +175,8 @@ int flac_cuda_deploy_data(GRFlacDecodeUser *flacUser)
     return 1;
 }
 
+#define CudaThreadBlockSize 32
+
 void flac_cuda_decode(GRFlacDecodeUser *flacUser,
                       size_t *frameSizes,
                       grint32 *pcm)
@@ -182,9 +184,9 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
     //Get the flac cuda pointer.
     GRFlacCuda *flacCuda=flacUser->flacCuda;
     //Allocate the start position.
-    gruint64 blockCount=(flacUser->frameCount+31)>>5;
+    gruint64 blockCount=(flacUser->frameCount+CudaThreadBlockSize-1)/CudaThreadBlockSize;
     //Find all the frames.
-    flac_cuda_find_frames<<<blockCount, 32>>>(
+    flac_cuda_find_frames<<<blockCount, CudaThreadBlockSize>>>(
         flacCuda->cudaData, 
         flacUser->frameDataSize, 
         flacCuda->cudaFramePos, 
@@ -198,7 +200,7 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
     //So now, we have a table which marks all the frame position.
     //Decode the frame header, initialized the bit stream to the start position 
     //of the sub frame.
-    flac_cuda_decode_frames<<<blockCount, 32>>>(
+    flac_cuda_decode_frames<<<blockCount, CudaThreadBlockSize>>>(
         flacCuda->cudaData, 
         flacCuda->cudaFramePos,
         flacUser->streamInfo.bitsPerSample,
@@ -208,7 +210,7 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
     //Loop, decode sub frame for each channel.
     for(gruint8 i=0; i<flacUser->streamInfo.channels; ++i)
     {
-        flac_cuda_decode_sub_frame<<<blockCount, 32>>>(
+        flac_cuda_decode_sub_frame<<<blockCount, CudaThreadBlockSize>>>(
             flacCuda->cudaFrameDecode, 
             i, 
             flacUser->frameLength, 
@@ -216,13 +218,13 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
             flacUser->frameCount,
             flacCuda->cudaSubFrames, 
             flacCuda->cudaPcm);
-        flac_cuda_restore_signal<<<blockCount, 32>>>(
+        flac_cuda_restore_signal<<<blockCount, CudaThreadBlockSize>>>(
             flacCuda->cudaFrameDecode, 
             flacCuda->cudaSubFrames, 
             flacUser->frameCount);
     }
     //Interchannel decorrelation.
-    flac_cuda_decorrelate_interchannel<<<blockCount, 32>>>(
+    flac_cuda_decorrelate_interchannel<<<blockCount, CudaThreadBlockSize>>>(
         flacCuda->cudaFrameDecode, 
         flacUser->frameCount);
 

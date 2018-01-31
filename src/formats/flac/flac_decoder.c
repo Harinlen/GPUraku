@@ -54,7 +54,7 @@ static inline int flac_utf8_length(uchar *frame)
              (((frame[0] & 0xE0)==0xC0) ? 2 : 1)))));
 }
 
-static inline gruint64 flac_utf8(uchar *pos)
+static inline gruint32 flac_utf8(uchar *pos)
 {
     return (((pos[0] & 0x80)==0) ?
         ((gruint64)pos[0]) :
