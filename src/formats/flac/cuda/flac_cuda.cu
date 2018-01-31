@@ -74,6 +74,14 @@ __constant__ gruint8        cudaChannelAss[16];
 #include "flac_cuda_subframe.cup"
 #include "flac_cuda_channel.cup"
 
+#if __CUDA_ARCH__ >= 350
+    // For Eric's GTX1080
+    #define CudaThreadBlockSize 128
+#else
+    // For my local GTX680M
+    #define CudaThreadBlockSize 32
+#endif
+
 void flac_cuda_deploy_constants()
 {
     //Prepare the constant tables.
@@ -174,14 +182,6 @@ int flac_cuda_deploy_data(GRFlacDecodeUser *flacUser)
     flacUser->flacCuda=flacCuda;
     return 1;
 }
-
-#if __CUDA_ARCH__ >= 350
-    // For Eric's GTX1080
-    #define CudaThreadBlockSize 128
-#else
-    // For my local GTX680M
-    #define CudaThreadBlockSize 32
-#endif
 
 void flac_cuda_decode(GRFlacDecodeUser *flacUser,
                       size_t *frameSizes,

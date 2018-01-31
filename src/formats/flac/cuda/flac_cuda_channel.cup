@@ -147,86 +147,10 @@ __global__ void flac_cuda_restore_signal(
 
 #if __CUDA_ARCH__ >= 350
     // For Eric's GTX1080
-    #define test
+    #include "flac_cuda_channel_pascal.cu"
 #else
     // For my local GTX680M
-    #define notest
+    #include "flac_cuda_channel_30.cu"
 #endif
-
-__device__ void flac_cuda_left_assignment(
-    grint32 * __restrict__ leftChannel, 
-    grint32 * __restrict__ rightChannel, 
-    gruint32 blockSize)
-{
-    //The right channel is not the original data.
-    for(gruint32 i=0; i<blockSize; ++i)
-    {
-        rightChannel[i]=leftChannel[i]-rightChannel[i];
-    }
-}
-
-__device__ void flac_cuda_right_assignment(
-    grint32 * __restrict__ leftChannel, 
-    grint32 * __restrict__ rightChannel, 
-    gruint32 blockSize)
-{
-    //The left channel is not the original data.
-    for(gruint32 i=0; i<blockSize; ++i)
-    {
-        leftChannel[i]+=rightChannel[i];
-    }
-}
-
-__device__ void flac_cuda_mid_assignment(
-    grint32 * __restrict__ leftChannel, 
-    grint32 * __restrict__ rightChannel, 
-    gruint32 blockSize)
-{
-    //The left channel is not the original data.
-    grint32 mid, side;
-    for(gruint32 i=0; i<blockSize; ++i)
-    {
-        side=rightChannel[i];
-        mid= (leftChannel[i]<<1) | (side & 1);
-        leftChannel[i]=(mid+side)>>1;
-        rightChannel[i]=(mid-side)>>1;
-    }
-}
-
-
-__global__ void flac_cuda_decorrelate_interchannel(
-    CudaFrameDecode *decodeData,
-    gruint32 frameCount)
-{
-    //Calculate the core index.
-    int threadId=blockDim.x * blockIdx.x + threadIdx.x;
-    if(threadId >= frameCount)
-    {
-        return;
-    }
-    //Get the sub frame type.
-    gruint8 channelAssignment=decodeData[threadId].channelAssignment;
-    gruint32 blockSize=decodeData[threadId].blockSize;
-    if(channelAssignment==FLAC_CHANNEL_INDEPENDENT)
-    {
-        //No need to do any thing.
-        return;
-    }
-    //Get the channel pointer.
-    grint32 *left=decodeData[threadId].channelPcm[0],
-            *right=decodeData[threadId].channelPcm[1];
-    if(channelAssignment==FLAC_CHANNEL_LEFT_ASSIGNMENT)
-    {
-        flac_cuda_left_assignment(left, right, blockSize);
-        return;
-    }
-    if(channelAssignment==FLAC_CHANNEL_MID_ASSIGNMENT)
-    {
-        flac_cuda_mid_assignment(left, right, blockSize);
-        return;
-    }
-    //FLAC_CHANNEL_RIGHT_ASSIGNMENT
-    flac_cuda_right_assignment(left, right, blockSize);
-}
 
 #endif // FLAC_CUDA_CHANNEL
