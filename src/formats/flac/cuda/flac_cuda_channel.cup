@@ -33,7 +33,6 @@ __global__ void flac_cuda_restore_signal(
     CudaSubFrameType subFrameType=subFrame[threadId];
     gruint32 blockSize=decodeData[threadId].blockSize;
     gruint32 i, j;
-    grint32 sum, cacheBuf[33];
     //Check sub frame type.
     if(subFrameType.type==FLAC_SUBFRAME_VERBATIM)
     {
@@ -42,10 +41,11 @@ __global__ void flac_cuda_restore_signal(
     }
     if(subFrameType.type==FLAC_SUBFRAME_CONSTANT)
     {
+        grint32 cache=subFrameType.pcm[0];
         //Copy the first data to the rest of the samples.
         for(i=1; i<blockSize; ++i)
         {
-            subFrameType.pcm[i]=subFrameType.pcm[0];
+            subFrameType.pcm[i]=cache;
         }
         return;
     }
@@ -56,6 +56,8 @@ __global__ void flac_cuda_restore_signal(
         {
             return;
         }
+        //Define the three level progression.
+        grint32 cache0, cache1, cache2;
         if(subFrameType.order==1)
         {
             //Apply the algorithm.
@@ -69,13 +71,13 @@ __global__ void flac_cuda_restore_signal(
         }
         else if(subFrameType.order==2)
         {
-            cacheBuf[0]=subFrameType.pcm[1]-subFrameType.pcm[0];
+            cache0=subFrameType.pcm[1]-subFrameType.pcm[0];
             //Apply the algorithm.
             i=2;
             while(i<blockSize)
             {
                 //Calculate the result.
-                subFrameType.pcm[i]=(cacheBuf[0]+=subFrameType.pcm[i])+
+                subFrameType.pcm[i]=(cache0+=subFrameType.pcm[i])+
                                     subFrameType.pcm[i-1];
                 ++i;
             }
@@ -83,33 +85,37 @@ __global__ void flac_cuda_restore_signal(
         else if(subFrameType.order==3)
         {
             //Apply the algorithm.
-            cacheBuf[0]=subFrameType.pcm[2]-(subFrameType.pcm[1]<<1)+
+            cache0=subFrameType.pcm[2]-(subFrameType.pcm[1]<<1)+
                         subFrameType.pcm[0];
-            cacheBuf[1]=subFrameType.pcm[2]-subFrameType.pcm[1];
+            cache1=subFrameType.pcm[2]-subFrameType.pcm[1];
             i=3;
             while(i<blockSize)
             {
-                subFrameType.pcm[i]=(cacheBuf[1]+=
-                                    (cacheBuf[0]+=subFrameType.pcm[i]))+
+                subFrameType.pcm[i]=(cache1+=
+                                    (cache0+=subFrameType.pcm[i]))+
                                     subFrameType.pcm[i-1];
                 ++i;
             }
         }
         else if(subFrameType.order==4)
         {
+            grint32 temp0=subFrameType.pcm[0], 
+                    temp1=subFrameType.pcm[1], 
+                    temp2=subFrameType.pcm[2], 
+                    temp3=subFrameType.pcm[3];
             //Apply the algorithm.
-            cacheBuf[0]=subFrameType.pcm[3]-(subFrameType.pcm[2]<<1)-
-                        subFrameType.pcm[2]+(subFrameType.pcm[1]<<1)+
-                        subFrameType.pcm[1]-subFrameType.pcm[0];
-            cacheBuf[1]=subFrameType.pcm[3]-(subFrameType.pcm[2]<<1)+
-                        subFrameType.pcm[1];
-            cacheBuf[2]=subFrameType.pcm[3]-subFrameType.pcm[2];
+            cache0=temp3-(temp2<<1)-
+                        temp2+(temp1<<1)+
+                        temp1-temp0;
+            cache1=temp3-(temp2<<1)+
+                        temp1;
+            cache2=temp3-temp2;
             i=4;
             while(i<blockSize)
             {
-                subFrameType.pcm[i]=(cacheBuf[2]+=
-                                    (cacheBuf[1]+=
-                                    (cacheBuf[0]+=subFrameType.pcm[i])))+
+                subFrameType.pcm[i]=(cache2+=
+                                    (cache1+=
+                                    (cache0+=subFrameType.pcm[i])))+
                                     subFrameType.pcm[i-1];
                 ++i;
             }
@@ -117,6 +123,7 @@ __global__ void flac_cuda_restore_signal(
         return;
     }
     //LPC.
+    grint32 sum, cacheBuf[33];
     for(i=0; i<subFrameType.order; ++i)
     {
         cacheBuf[i]=subFrameType.pcm[i];
@@ -132,10 +139,19 @@ __global__ void flac_cuda_restore_signal(
             cacheBuf[j]=cacheBuf[j+1];
         }
         //Apply the different, set the value to samples.
-        cacheBuf[subFrameType.order-1]=
-            (subFrameType.pcm[i]+=(sum>>subFrameType.shift));
+        subFrameType.pcm[i]=
+            (cacheBuf[subFrameType.order-1]=
+                subFrameType.pcm[i]+(sum>>subFrameType.shift));
     }
 }
+
+#if __CUDA_ARCH__ >= 350
+    // For Eric's GTX1080
+    #define test
+#else
+    // For my local GTX680M
+    #define notest
+#endif
 
 __device__ void flac_cuda_left_assignment(
     grint32 * __restrict__ leftChannel, 

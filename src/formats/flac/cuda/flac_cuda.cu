@@ -175,7 +175,13 @@ int flac_cuda_deploy_data(GRFlacDecodeUser *flacUser)
     return 1;
 }
 
-#define CudaThreadBlockSize 32
+#if __CUDA_ARCH__ >= 350
+    // For Eric's GTX1080
+    #define CudaThreadBlockSize 128
+#else
+    // For my local GTX680M
+    #define CudaThreadBlockSize 32
+#endif
 
 void flac_cuda_decode(GRFlacDecodeUser *flacUser,
                       size_t *frameSizes,
