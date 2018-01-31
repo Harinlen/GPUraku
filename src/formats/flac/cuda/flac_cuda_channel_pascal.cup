@@ -18,24 +18,24 @@
 // This is the channel assignment codes for GTX1080
 
 __global__ void flac_cuda_left_assignment(
-    grint32 *leftChannel, 
-    grint32 *rightChannel)
+    grint32 * __restrict__ leftChannel, 
+    grint32 * __restrict__ rightChannel)
 {
     //The right channel is not the original data.
     rightChannel[threadIdx.x]=leftChannel[threadIdx.x]-rightChannel[threadIdx.x];
 }
 
 __global__ void flac_cuda_right_assignment(
-    grint32 *leftChannel, 
-    grint32 *rightChannel)
+    grint32 * __restrict__ leftChannel, 
+    grint32 * __restrict__ rightChannel)
 {
     //The right channel is not the original data.
     leftChannel[threadIdx.x]+=rightChannel[threadIdx.x];
 }
 
 __global__ void flac_cuda_mid_assignment(
-    grint32 *leftChannel, 
-    grint32 *rightChannel)
+    grint32 * __restrict__ leftChannel, 
+    grint32 * __restrict__ rightChannel)
 {
     //The right channel is not the original data.
     grint32 side=rightChannel[threadIdx.x], 
