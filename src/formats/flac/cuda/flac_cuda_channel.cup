@@ -23,12 +23,14 @@ __global__ void flac_cuda_restore_signal(
     CudaSubFrameType *subFrame,
     gruint32 frameCount)
 {
+    __shared__ grint32 sampleBuffer[CudaThreadBlockSize<<4];
     //Calculate the core index.
     int threadId=blockDim.x * blockIdx.x + threadIdx.x;
     if(threadId >= frameCount)
     {
         return;
     }
+    grint32 *cacheBuf=sampleBuffer+(threadIdx.x<<4);
     //Get the sub frame type.
     CudaSubFrameType subFrameType=subFrame[threadId];
     gruint32 blockSize=decodeData[threadId].blockSize;
@@ -123,7 +125,7 @@ __global__ void flac_cuda_restore_signal(
         return;
     }
     //LPC.
-    grint32 sum, cacheBuf[33];
+    grint32 sum;
     for(i=0; i<subFrameType.order; ++i)
     {
         cacheBuf[i]=subFrameType.pcm[i];
