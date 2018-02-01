@@ -35,14 +35,14 @@ __device__ __forceinline__ void flac_cuda_decode_residual(
     CudaBitStream stream=*streamIn;
     //Read the data of the stream.
     gruint8 partitionOrder;
-    BitReadDBit(stream, partitionOrder);
-    BitReadHByte(stream, partitionOrder);
+    BitRead2Bit(stream, partitionOrder);
+    BitRead4Bit(stream, partitionOrder);
     gruint32 partitions=(1 << partitionOrder),
              otherPartitionSize=blockSize >> partitionOrder, 
              partitionSamples=(partitionOrder==0)?
                 (blockSize-order):
                 (blockSize >> partitionOrder)-order, 
-            ones, i, lsbs;
+            ones, lsbs;
     grint32 x;
     gruint8 riceParameter;
     cudaUIntFunc riceReader;
@@ -50,7 +50,7 @@ __device__ __forceinline__ void flac_cuda_decode_residual(
     while(partitions--)
     {
         //Read rice parameter.
-        BitReadHByte(stream, riceParameter);
+        BitRead4Bit(stream, riceParameter);
         riceReader=readerList[riceParameter];
         if(riceParameter==0x0F)
         {
@@ -196,7 +196,7 @@ __global__ void flac_cuda_decode_sub_frame(
             (*pcm++)=(numReader(stream)^mask)-mask;
         }
         //Read the precision.
-        BitReadHByte(stream, precision);
+        BitRead4Bit(stream, precision);
         ++precision;
         //Read the shift.
         subFrameType.shift=GRReadUInt5(stream);

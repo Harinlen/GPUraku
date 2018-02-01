@@ -29,6 +29,26 @@ extern "C"
 #include "flac_cuda.h"
 }
 
+// ---------- Constants ---------- 
+__constant__ unsigned char  cudaFlacCrc8Table[256];
+__constant__ gruint32       cudaBlockSize[16];
+__constant__ gruint32       cudaSampleRate[16];
+__constant__ gruint8        cudaChannel[16];
+__constant__ gruint8        cudaBps[8];
+__constant__ gruint8        cudaChannelAss[16];
+
+#if __CUDA_ARCH__ >= 350
+    // For Eric's GTX1080
+    #define CudaThreadBlockSize 128
+    #define cudaLdg(x)          __ldg(&x)
+    #define cudaRLdg(x)         __ldg(x)
+#else
+    // For my local GTX680M
+    #define CudaThreadBlockSize 32
+    #define cudaLdg(x)          (x)
+    #define cudaRLdg(x)         (*(x))
+#endif
+
 #include "flac_cuda_bitstream.cup"
 
 typedef struct CudaFrameDecode
@@ -59,22 +79,7 @@ typedef struct GRFlacCuda
     CudaFrameDecode  *cudaFrameDecode; // GPU decode data
 } GRFlacCuda;
 
-// ---------- Constants ---------- 
-__constant__ unsigned char  cudaFlacCrc8Table[256];
-__constant__ gruint32       cudaBlockSize[16];
-__constant__ gruint32       cudaSampleRate[16];
-__constant__ gruint8        cudaChannel[16];
-__constant__ gruint8        cudaBps[8];
-__constant__ gruint8        cudaChannelAss[16];
-
-#if __CUDA_ARCH__ >= 350
-    // For Eric's GTX1080
-    #define CudaThreadBlockSize 128
-#else
-    // For my local GTX680M
-    #define CudaThreadBlockSize 32
-#endif
-
+//----Parts----
 #include "flac_cuda_frame.cup"
 #include "flac_cuda_subframe.cup"
 #include "flac_cuda_channel.cup"
