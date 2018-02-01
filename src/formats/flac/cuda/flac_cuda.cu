@@ -30,8 +30,6 @@ extern "C"
 }
 
 #include "flac_cuda_bitstream.cup"
-#include "flac_cuda_utf8.cup"
-#include "flac_cuda_crc.cup"
 
 typedef struct CudaFrameDecode
 {
@@ -70,10 +68,6 @@ __constant__ gruint8        cudaChannel[16];
 __constant__ gruint8        cudaBps[8];
 __constant__ gruint8        cudaChannelAss[16];
 
-#include "flac_cuda_frame.cup"
-#include "flac_cuda_subframe.cup"
-#include "flac_cuda_channel.cup"
-
 #if __CUDA_ARCH__ >= 350
     // For Eric's GTX1080
     #define CudaThreadBlockSize 128
@@ -81,6 +75,11 @@ __constant__ gruint8        cudaChannelAss[16];
     // For my local GTX680M
     #define CudaThreadBlockSize 32
 #endif
+
+#include "flac_cuda_frame.cup"
+#include "flac_cuda_subframe.cup"
+#include "flac_cuda_channel.cup"
+
 
 void flac_cuda_deploy_constants()
 {
@@ -192,27 +191,21 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
     //Allocate the start position.
     gruint64 blockCount=(flacUser->frameCount+CudaThreadBlockSize-1)/CudaThreadBlockSize;
     //Find all the frames.
+    //Decode the frame header, initialized the bit stream to the start position 
+    //of the sub frame.
     flac_cuda_find_frames<<<blockCount, CudaThreadBlockSize>>>(
         flacCuda->cudaData, 
-        flacUser->frameDataSize, 
-        flacCuda->cudaFramePos, 
-        flacUser->lastPos, 
-        flacUser->searchSize, 
+        flacUser->frameDataSize,
+        flacCuda->cudaFramePos,
+        flacCuda->cudaFrameSizes,
+        flacCuda->cudaFrameDecode,
+        flacUser->lastPos,
+        flacUser->searchSize,
         flacUser->frameCount, 
         flacUser->frameCount, 
         flacUser->streamInfo.sampleRate, 
         flacUser->streamInfo.channels, 
         flacUser->streamInfo.bitsPerSample);
-    //So now, we have a table which marks all the frame position.
-    //Decode the frame header, initialized the bit stream to the start position 
-    //of the sub frame.
-    flac_cuda_decode_frames<<<blockCount, CudaThreadBlockSize>>>(
-        flacCuda->cudaData, 
-        flacCuda->cudaFramePos,
-        flacUser->streamInfo.bitsPerSample,
-        flacCuda->cudaFrameSizes, 
-        flacUser->frameCount,
-        flacCuda->cudaFrameDecode);
     //Loop, decode sub frame for each channel.
     for(gruint8 i=0; i<flacUser->streamInfo.channels; ++i)
     {

@@ -24,16 +24,16 @@
 
 // Block size match table
 static gruint32 flacBlockSize[16]={0,    192,  576,  1152, 2304, 4608, 8,    16,
-                            256,  512,  1024, 2048, 4096, 8192, 16384,32768};
+                                   256,  512,  1024, 2048, 4096, 8192, 16384,32768};
 
 // Sample rate match table
 static gruint32 flacSampleRate[16]={1,    88200, 176400, 192000, 
-                             8000, 16000, 22050,  24000,
-                             32000,44100, 48000,  96000,  
-                             8001, 16,    160,    2};
+                                    8000, 16000, 22050,  24000,
+                                    32000,44100, 48000,  96000,  
+                                    8001, 16,    160,    0};
 
 static gruint8 flacChannel[16]={1, 2, 3, 4, 5, 6, 7, 8,
-                         2, 2, 2, 0, 0, 0, 0, 0};
+                                2, 2, 2, 0, 0, 0, 0, 0};
 
 static gruint8 flacChannelAssignment[16]={
         FLAC_CHANNEL_INDEPENDENT,     FLAC_CHANNEL_INDEPENDENT,

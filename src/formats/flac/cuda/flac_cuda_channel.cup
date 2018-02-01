@@ -147,7 +147,7 @@ __global__ void flac_cuda_restore_signal(
 
 #if __CUDA_ARCH__ >= 350
     // For Eric's GTX1080
-    #include "flac_cuda_channel_30.cup"
+    #include "flac_cuda_channel_pascal.cup"
 #else
     // For my local GTX680M
     #include "flac_cuda_channel_30.cup"
