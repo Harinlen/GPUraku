@@ -52,7 +52,6 @@ typedef struct CudaSubFrameType
 
 typedef struct GRFlacCuda
 {
-    size_t *          cudaFramePos;    // GPU data of frame positions.
     size_t *          cudaFrameSizes;  // GPU data of frame sizes.
     uchar *           cudaData;        // GPU data of the raw FLAC data.
     grint32 *         cudaPcm;         // GPU data of the PCM samples.
@@ -117,21 +116,11 @@ int flac_cuda_deploy_data(GRFlacDecodeUser *flacUser)
         //Failed to allocate memory.
         return 0;
     }
-    if(!gr_cuda_malloc(flacCuda->cudaFramePos, 
-                       flacUser->frameSizeLength+sizeof(size_t)))
-    {
-        //Roll back.
-        cudaFree(flacCuda->cudaData);
-        gr_free((void **)&flacCuda);
-        //Failed to allocate memory.
-        return 0;
-    }
     if(!gr_cuda_malloc(flacCuda->cudaFrameSizes, 
                        flacUser->frameSizeLength))
     {
         //Roll back.
         cudaFree(flacCuda->cudaData);
-        cudaFree(flacCuda->cudaFramePos);
         gr_free((void **)&flacCuda);
         //Failed to allocate memory.
         return 0;
@@ -141,7 +130,6 @@ int flac_cuda_deploy_data(GRFlacDecodeUser *flacUser)
     {
         //Roll back.
         cudaFree(flacCuda->cudaData);
-        cudaFree(flacCuda->cudaFramePos);
         cudaFree(flacCuda->cudaFrameSizes);
         gr_free((void **)&flacCuda);
         //Failed to allocate memory.
@@ -152,7 +140,6 @@ int flac_cuda_deploy_data(GRFlacDecodeUser *flacUser)
     {
         //Roll back.
         cudaFree(flacCuda->cudaData);
-        cudaFree(flacCuda->cudaFramePos);
         cudaFree(flacCuda->cudaFrameSizes);
         cudaFree(flacCuda->cudaFrameDecode);
         gr_free((void **)&flacCuda);
@@ -164,7 +151,6 @@ int flac_cuda_deploy_data(GRFlacDecodeUser *flacUser)
     {
         //Roll back.
         cudaFree(flacCuda->cudaData);
-        cudaFree(flacCuda->cudaFramePos);
         cudaFree(flacCuda->cudaFrameSizes);
         cudaFree(flacCuda->cudaFrameDecode);
         cudaFree(flacCuda->cudaSubFrames);
@@ -196,7 +182,6 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
     flac_cuda_find_frames<<<blockCount, CudaThreadBlockSize>>>(
         flacCuda->cudaData, 
         flacUser->frameDataSize,
-        flacCuda->cudaFramePos,
         flacCuda->cudaFrameSizes,
         flacCuda->cudaFrameDecode,
         flacUser->lastPos,
@@ -246,7 +231,6 @@ void flac_cuda_free_data(GRFlacDecodeUser *flacUser)
     GRFlacCuda *flacCuda=flacUser->flacCuda;
     //Free all the data.
     cudaFree(flacCuda->cudaData);
-    cudaFree(flacCuda->cudaFramePos);
     cudaFree(flacCuda->cudaFrameSizes);
     cudaFree(flacCuda->cudaFrameDecode);
     cudaFree(flacCuda->cudaSubFrames);

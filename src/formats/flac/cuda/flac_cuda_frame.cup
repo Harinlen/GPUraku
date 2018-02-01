@@ -28,7 +28,6 @@
 __global__ void flac_cuda_find_frames(
     uchar * __restrict__ data,
     size_t dataSize, 
-    size_t *framePos,
     size_t *frameSizes,
     CudaFrameDecode *decodeData,
     size_t lastPos,
@@ -161,7 +160,6 @@ __global__ void flac_cuda_find_frames(
                             frameSizes[frameIndex]=frameData.blockSize;
                             //Skip the data.
                             startPos+=(headerSize+1);
-                            //framePos[frameIndex]=startPos-data;
                             //Create the bitstream for decoding.
                             frameData.bitStream.data=startPos;
                             frameData.bitStream.cache=(*startPos);
