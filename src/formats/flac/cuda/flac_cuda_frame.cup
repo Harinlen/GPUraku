@@ -68,9 +68,9 @@ __global__ void flac_cuda_find_frames(
         {
             CudaFrameDecode frameData;
             //Read the data to shared memory cache.
-            cache[1]=startPos[1];
-            cache[2]=startPos[2];
-            cache[3]=startPos[3];
+            cache[1]=cudaLdg(startPos[1]);
+            cache[2]=cudaLdg(startPos[2]);
+            cache[3]=cudaLdg(startPos[3]);
             //Pass the initial check, parse the header data.
             gruint32 sampleRate=cudaSampleRate[cache[2] & 0x0F];
             frameData.blockSize=cudaBlockSize[(cache[2] & 0xF0)>>4];
@@ -81,7 +81,7 @@ __global__ void flac_cuda_find_frames(
             {
                 //No invalid value found, calculate the CRC-8 to check whether it is frame or not.
                 //Read UTF-8 length.
-                gruint8 utfByte=(cache[4]=startPos[4]);
+                gruint8 utfByte=(cache[4]=cudaLdg(startPos[4]));
                 gruint32 headerSize= 5 + (utfByte > 0xBF) + (utfByte > 0xDF) + (utfByte > 0xF0) + 
                                          (utfByte > 0xF7) + (utfByte > 0xFB) + (utfByte == 0xFE),
                          frameIndex;
@@ -98,7 +98,7 @@ __global__ void flac_cuda_find_frames(
                     utfByte=5;
                     while(utfByte<headerSize)
                     {
-                        frameIndex=(frameIndex<<6)|((cache[utfByte]=startPos[utfByte])&0x3F);
+                        frameIndex=(frameIndex<<6)|((cache[utfByte]=cudaLdg(startPos[utfByte]))&0x3F);
                         ++utfByte;
                     }
                 }
@@ -109,14 +109,14 @@ __global__ void flac_cuda_find_frames(
                     if(frameData.blockSize==8)
                     {
                         // 8-bit
-                        frameData.blockSize=(gruint32)(cache[headerSize]=startPos[headerSize])+1;
+                        frameData.blockSize=(gruint32)(cache[headerSize]=cudaLdg(startPos[headerSize]))+1;
                         ++headerSize;
                     }
                     else if(frameData.blockSize==16)
                     {
                         // 16-bit BE
-                        cache[headerSize]=startPos[headerSize];
-                        cache[headerSize+1]=startPos[headerSize+1];
+                        cache[headerSize]=cudaLdg(startPos[headerSize]);
+                        cache[headerSize+1]=cudaLdg(startPos[headerSize+1]);
                         frameData.blockSize=(cache[headerSize]<<8)|cache[headerSize+1];
                         ++frameData.blockSize;
                         headerSize+=2;
@@ -125,14 +125,14 @@ __global__ void flac_cuda_find_frames(
                     if(sampleRate==8001)
                     {
                         //Fetch 8-bit, unit kHz.
-                        cache[headerSize]=startPos[headerSize];
+                        cache[headerSize]=cudaLdg(startPos[headerSize]);
                         ++headerSize;
                     }
                     else if(sampleRate==16 || sampleRate==160)
                     {
                         //Fetch 16-bit, unit Hz.
-                        cache[headerSize]=startPos[headerSize];
-                        cache[headerSize+1]=startPos[headerSize+1];
+                        cache[headerSize]=cudaLdg(startPos[headerSize]);
+                        cache[headerSize+1]=cudaLdg(startPos[headerSize+1]);
                         headerSize+=2;
                     }
                     //Check the sample rate.
@@ -145,7 +145,7 @@ __global__ void flac_cuda_find_frames(
                         {
                             crc8=cudaFlacCrc8Table[crc8^cache[crcPos++]];
                         }
-                        if(crc8==startPos[headerSize])
+                        if(crc8==cudaLdg(startPos[headerSize]))
                         {
                             //Frame approval.
                             //Calculate the channel assignment.
