@@ -47,7 +47,7 @@ __device__ __forceinline__ void flac_cuda_decode_residual(
     gruint8 riceParameter;
     cudaUIntFunc riceReader;
     //Read residuals.
-    for(i=0; i<partitions; ++i)
+    while(partitions--)
     {
         //Read rice parameter.
         BitReadHByte(stream, riceParameter);
@@ -69,7 +69,7 @@ __device__ __forceinline__ void flac_cuda_decode_residual(
                 //Process the residual.
                 x=(ones << riceParameter) | lsbs;
                 //For the odd number, it is should be the minus number.
-                (*pcm++)=(x&1) ? (-((grint32)(x>>1))-1) : (grint32)(x>>1);
+                (*pcm++)=(x >> 1) ^ -(x & 1);
             }
         }
         else
@@ -129,6 +129,7 @@ __global__ void flac_cuda_decode_sub_frame(
     {
         decodeData[threadId].channelPcm[channel]=pcm;
     }
+    //Fetch the stream header.
     BitReadByte(stream, header);
     //Check channel.
     if(((channelAssignment==FLAC_CHANNEL_LEFT_ASSIGNMENT ||

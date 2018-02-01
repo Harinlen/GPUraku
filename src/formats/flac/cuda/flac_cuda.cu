@@ -56,7 +56,7 @@ typedef struct GRFlacCuda
     uchar *           cudaData;        // GPU data of the raw FLAC data.
     grint32 *         cudaPcm;         // GPU data of the PCM samples.
     CudaSubFrameType *cudaSubFrames;   // GPU decode data.
-    CudaFrameDecode * cudaFrameDecode; // GPU decode data
+    CudaFrameDecode  *cudaFrameDecode; // GPU decode data
 } GRFlacCuda;
 
 // ---------- Constants ---------- 
