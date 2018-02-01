@@ -19,29 +19,45 @@
 
 __global__ void flac_cuda_left_assignment(
     grint32 * __restrict__ leftChannel, 
-    grint32 * __restrict__ rightChannel)
+    grint32 * __restrict__ rightChannel,
+    gruint32 blockSize)
 {
-    //The right channel is not the original data.
-    rightChannel[threadIdx.x]=leftChannel[threadIdx.x]-rightChannel[threadIdx.x];
+    //Calculate the index.
+    int index=blockDim.x * blockIdx.x + threadIdx.x;
+    if(index < blockSize)
+    {
+        //The right channel is not the original data.
+        rightChannel[index]=leftChannel[index]-rightChannel[index];
+    }
 }
 
 __global__ void flac_cuda_right_assignment(
     grint32 * __restrict__ leftChannel, 
-    grint32 * __restrict__ rightChannel)
+    grint32 * __restrict__ rightChannel,
+    gruint32 blockSize)
 {
-    //The right channel is not the original data.
-    leftChannel[threadIdx.x]+=rightChannel[threadIdx.x];
+    int index=blockDim.x * blockIdx.x + threadIdx.x;
+    if(index < blockSize)
+    {
+        //The left channel is not the original data.
+        leftChannel[index]+=rightChannel[index];
+    }
 }
 
 __global__ void flac_cuda_mid_assignment(
     grint32 * __restrict__ leftChannel, 
-    grint32 * __restrict__ rightChannel)
+    grint32 * __restrict__ rightChannel,
+    gruint32 blockSize)
 {
-    //The right channel is not the original data.
-    grint32 side=rightChannel[threadIdx.x], 
-            mid=(leftChannel[threadIdx.x]<<1) | (side & 1);
-    leftChannel[threadIdx.x]=(mid+side)>>1;
-    rightChannel[threadIdx.x]=(mid-side)>>1;
+    int index=blockDim.x * blockIdx.x + threadIdx.x;
+    if(index < blockSize)
+    {
+        //Restore both left and right channel.
+        grint32 side=rightChannel[index], 
+                mid=(leftChannel[index]<<1) | (side & 1);
+        leftChannel[index]=(mid+side)>>1;
+        rightChannel[index]=(mid-side)>>1;
+    }
 }
 
 __global__ void flac_cuda_decorrelate_interchannel(
@@ -66,16 +82,20 @@ __global__ void flac_cuda_decorrelate_interchannel(
     //Get the channel pointer.
     grint32 *left=decodeData[threadId].channelPcm[0],
             *right=decodeData[threadId].channelPcm[1];
+    int cudaBlockCount=(blockSize+CudaThreadBlockSize-1)/CudaThreadBlockSize;
     if(channelAssignment==FLAC_CHANNEL_LEFT_ASSIGNMENT)
     {
-        flac_cuda_left_assignment<<<1, blockSize>>>(left, right);
+        flac_cuda_left_assignment<<<cudaBlockCount, CudaThreadBlockSize>>>(
+            left, right, blockSize);
         return;
     }
     if(channelAssignment==FLAC_CHANNEL_MID_ASSIGNMENT)
     {
-        flac_cuda_mid_assignment<<<1, blockSize>>>(left, right);
+        flac_cuda_mid_assignment<<<cudaBlockCount, CudaThreadBlockSize>>>(
+            left, right, blockSize);
         return;
     }
     //FLAC_CHANNEL_RIGHT_ASSIGNMENT
-    flac_cuda_right_assignment<<<1, blockSize>>>(left, right);
+    flac_cuda_right_assignment<<<cudaBlockCount, CudaThreadBlockSize>>>(
+        left, right, blockSize);
 }
