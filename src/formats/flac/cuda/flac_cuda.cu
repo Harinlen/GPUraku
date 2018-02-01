@@ -206,6 +206,12 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
         flacUser->streamInfo.sampleRate, 
         flacUser->streamInfo.channels, 
         flacUser->streamInfo.bitsPerSample);
+    //gr_cuda_memcpy_to_host(
+    //    frameSizes, flacCuda->cudaFramePos, flacUser->frameSizeLength);
+    //for(size_t i=0; i<flacUser->frameCount; ++i)
+    //{
+    //    printf("%lu\t%lu\n", i, frameSizes[i]);
+    //}
     //Loop, decode sub frame for each channel.
     for(gruint8 i=0; i<flacUser->streamInfo.channels; ++i)
     {
