@@ -173,7 +173,7 @@ BOOL flac_check(GRInputFile *file, void **user)
     flacUser->frameLength=streamInfo->maximumBlockSize*streamInfo->channels;
     flacUser->pcmSize=
         flacUser->frameLength*flacUser->frameCount*sizeof(grint32);
-    flacUser->searchSize=flacUser->frameDataSize/flacUser->frameCount;
+    flacUser->searchSize=(flacUser->lastPos+4)/flacUser->frameCount;
     flacUser->flacCuda=NULL;
     //Deploy constant data to graphics card.
     flac_cuda_deploy_constants();

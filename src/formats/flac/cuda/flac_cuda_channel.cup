@@ -70,7 +70,7 @@ __global__ void flac_cuda_restore_signal(
             while(i<blockSize)
             {
                 //Calculate the result.
-                lastCache=(subFrameType.pcm[i]+=lastCache);
+                subFrameType.pcm[i]=(lastCache+=subFrameType.pcm[i]);
                 ++i;
             }
         }
@@ -83,9 +83,9 @@ __global__ void flac_cuda_restore_signal(
             while(i<blockSize)
             {
                 //Calculate the result.
-                lastCache=(
-                    subFrameType.pcm[i]=(cache0+=subFrameType.pcm[i])+
-                                        lastCache);
+                subFrameType.pcm[i]=(
+                    lastCache=(cache0+=subFrameType.pcm[i])+
+                              lastCache);
                 ++i;
             }
         }
@@ -99,10 +99,10 @@ __global__ void flac_cuda_restore_signal(
             i=3;
             while(i<blockSize)
             {
-                lastCache=(
-                    subFrameType.pcm[i]=(cache1+=
-                                        (cache0+=subFrameType.pcm[i]))+
-                                        lastCache);
+                subFrameType.pcm[i]=(
+                    lastCache=(cache1+=
+                              (cache0+=subFrameType.pcm[i]))+
+                              lastCache);
                 ++i;
             }
         }
@@ -122,11 +122,11 @@ __global__ void flac_cuda_restore_signal(
             i=4;
             while(i<blockSize)
             {
-                lastCache=(
-                    subFrameType.pcm[i]=(cache2+=
-                                        (cache1+=
-                                        (cache0+=subFrameType.pcm[i])))+
-                                        lastCache);
+                subFrameType.pcm[i]=(
+                    lastCache=(cache2+=
+                              (cache1+=
+                              (cache0+=subFrameType.pcm[i])))+
+                              lastCache);
                 ++i;
             }
         } 

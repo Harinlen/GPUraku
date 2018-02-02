@@ -168,7 +168,7 @@ __global__ void flac_cuda_find_frames(
                             decodeData[frameIndex]=frameData;
                             //Skip CRC-16 at end, sub frame start at the middle.
                             //Continue to next checking.
-                            startPos+=3;
+                            startPos+=2+frameData.channel;
                             continue;
                         }
                     }
