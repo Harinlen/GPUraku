@@ -289,6 +289,23 @@ typedef struct CudaBitStream
         stream.cache=stream.fcache<<stream.bitpos;\
     }
 
+#define BitRead17Bit(stream, qbyte) \
+    if(stream.bitpos==7)\
+    {\
+        qbyte=((gruint32)stream.cache<<9)|(cudaRLdg(++stream.data)<<8)|\
+               cudaRLdg(++stream.data);\
+        stream.cache=cudaRLdg(++stream.data);\
+        stream.bitpos=0;\
+    }\
+    else\
+    {\
+        stream.fcache=cudaRLdg(stream.data+=2); \
+        qbyte=((gruint32)stream.cache<<9) | (cudaRLdg(stream.data-1)<<(stream.bitpos+1))\
+              |((stream.fcache & (~((1<<(7-stream.bitpos))-1))) >> (7-stream.bitpos));\
+        ++stream.bitpos;\
+        stream.cache=stream.fcache<<stream.bitpos;\
+    }
+
 typedef gruint32 (*cudaUIntFunc)(CudaBitStream &stream);
 
 __device__ __forceinline__ gruint32 GRReadUInt0(CudaBitStream &stream)
@@ -407,11 +424,8 @@ __device__ __forceinline__ gruint32 GRReadUInt16(CudaBitStream &stream)
 
 __device__ __forceinline__ gruint32 GRReadUInt17(CudaBitStream &stream)
 {
-    BitReadByte(stream, stream.temp8);
-    BitReadByte(stream, stream.temp8p);
-    BitReadBit(stream, stream.temp8q);
-    return (gruint32)(stream.temp8<<9) | (gruint32)(stream.temp8p<<1) |
-            (stream.temp8q);
+    BitRead17Bit(stream, stream.dcache);
+    return stream.dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt18(CudaBitStream &stream)
