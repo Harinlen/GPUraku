@@ -121,9 +121,9 @@ __global__ void flac_cuda_decode_sub_frame(
          GRReadUInt12, GRReadUInt13, GRReadUInt14, GRReadUInt15,
          GRReadUInt16, GRReadUInt17, GRReadUInt18, GRReadUInt19, 
          GRReadUInt20, GRReadUInt21, GRReadUInt22, GRReadUInt23,
-         GRReadUInt24, GRReadUInt25, NULL,         NULL, 
-         NULL,         NULL,         NULL,         NULL, 
-         NULL};
+         GRReadUInt24, GRReadUInt25, GRReadUInt26, GRReadUInt27, 
+         GRReadUInt28, GRReadUInt29, GRReadUInt30, GRReadUInt31, 
+         GRReadUInt32};
     pcm+=threadId*(frameLength)+channel*channelLength;
     subFrameType.pcm=pcm;
     //Backup channel pcm pointer.
@@ -132,7 +132,7 @@ __global__ void flac_cuda_decode_sub_frame(
         decodeData[threadId].channelPcm[channel]=pcm;
     }
     //Fetch the stream header.
-    BitReadByte(stream, header);
+    BitRead8Bit(stream, header);
     //Check channel.
     if(((channelAssignment==FLAC_CHANNEL_LEFT_ASSIGNMENT ||
          channelAssignment==FLAC_CHANNEL_MID_ASSIGNMENT) && 
