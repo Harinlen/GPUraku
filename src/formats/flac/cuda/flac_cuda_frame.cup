@@ -145,7 +145,7 @@ __global__ void flac_cuda_find_frames(
                         {
                             crc8=cudaFlacCrc8Table[crc8^cache[crcPos++]];
                         }
-                        if(crc8==cudaLdg(startPos[headerSize]))
+                        if(crc8==cudaRLdg(startPos+headerSize))
                         {
                             //Frame approval.
                             //Calculate the channel assignment.
@@ -162,7 +162,7 @@ __global__ void flac_cuda_find_frames(
                             startPos+=(headerSize+1);
                             //Create the bitstream for decoding.
                             frameData.bitStream.data=startPos;
-                            frameData.bitStream.cache=(*startPos);
+                            frameData.bitStream.cache=cudaRLdg(startPos);
                             frameData.bitStream.bitpos=0;
                             //Write the frame data to the global memory.
                             decodeData[frameIndex]=frameData;
