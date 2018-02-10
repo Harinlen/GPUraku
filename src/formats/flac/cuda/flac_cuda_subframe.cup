@@ -34,18 +34,19 @@ __device__ __forceinline__ void flac_cuda_decode_residual(
     //Do a hard copy of the stream.
     CudaBitStream stream=*streamIn;
     //Read the data of the stream.
-    gruint8 partitionOrder;
+    register gruint8 partitionOrder;
+    register gruint8 fcache;
     BitRead2Bit(stream, partitionOrder);
     BitRead4Bit(stream, partitionOrder);
-    gruint32 partitions=(1 << partitionOrder),
+    register gruint32 partitions=(1 << partitionOrder),
              otherPartitionSize=blockSize >> partitionOrder, 
              partitionSamples=(partitionOrder==0)?
                 (blockSize-order):
                 (blockSize >> partitionOrder)-order, 
             ones, lsbs;
-    grint32 x;
-    gruint8 riceParameter;
-    cudaUIntFunc riceReader;
+    register grint32 x;
+    register gruint8 riceParameter;
+    register cudaUIntFunc riceReader;
     //Read residuals.
     while(partitions--)
     {
@@ -132,6 +133,7 @@ __global__ void flac_cuda_decode_sub_frame(
         decodeData[threadId].channelPcm[channel]=pcm;
     }
     //Fetch the stream header.
+    register gruint8 fcache;
     BitRead8Bit(stream, header);
     //Check channel.
     if(((channelAssignment==FLAC_CHANNEL_LEFT_ASSIGNMENT ||
@@ -190,7 +192,7 @@ __global__ void flac_cuda_decode_sub_frame(
         subFrameType.type=FLAC_SUBFRAME_LPC;
         subFrameType.order=(header & 0x1F)+1;
         
-        gruint8 i, precision;
+        register gruint8 i, precision;
         // Read the warm up samples.
         for(i=0; i<subFrameType.order; ++i)
         {

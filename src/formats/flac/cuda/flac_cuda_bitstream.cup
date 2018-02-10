@@ -21,8 +21,7 @@
 typedef struct CudaBitStream
 {
     uchar *data;
-    gruint32 dcache;
-    gruint8 cache, fcache, f2cache;
+    gruint8 cache;
     gruint8 bitpos;
 } CudaBitStream;
 
@@ -76,10 +75,10 @@ typedef struct CudaBitStream
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
+        fcache=cudaRLdg(++stream.data); \
         stream.bitpos-=6; \
-        byte=(stream.cache>>6) | ((stream.fcache & (stream.bitpos<<7))>>7);\
-        stream.cache=stream.fcache<<stream.bitpos; \
+        byte=(stream.cache>>6) | ((fcache & (stream.bitpos<<7))>>7);\
+        stream.cache=fcache<<stream.bitpos; \
     }
 
 #define BitRead3Bit(stream, byte) \
@@ -91,11 +90,11 @@ typedef struct CudaBitStream
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        byte=(stream.cache>>5) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data); \
+        byte=(stream.cache>>5) | ((fcache & \
                         (~((1<<(13-stream.bitpos))-1))) >> (13-stream.bitpos));\
         stream.bitpos-=5; \
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
     
 #define BitRead4Bit(stream, byte) \
@@ -107,11 +106,11 @@ typedef struct CudaBitStream
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data);\
-        byte=(stream.cache >> 4) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data);\
+        byte=(stream.cache >> 4) | ((fcache & \
                         (~((1<<(12-stream.bitpos))-1))) >> (12-stream.bitpos));\
         stream.bitpos-=4; \
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead5Bit(stream, byte) \
@@ -123,11 +122,11 @@ typedef struct CudaBitStream
     }\
     else\
     {\
-        stream.fcache=cudaRLdg(++stream.data);\
-        byte=(stream.cache>>3) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data);\
+        byte=(stream.cache>>3) | ((fcache & \
                         (~((1<<(11-stream.bitpos))-1))) >> (11-stream.bitpos));\
         stream.bitpos-=3;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead6Bit(stream, byte) \
@@ -139,11 +138,11 @@ typedef struct CudaBitStream
     }\
     else\
     {\
-        stream.fcache=cudaRLdg(++stream.data);\
-        byte=(stream.cache>>2) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data);\
+        byte=(stream.cache>>2) | ((fcache & \
                         (~((1<<(10-stream.bitpos))-1))) >> (10-stream.bitpos));\
         stream.bitpos-=2;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
     
 #define BitRead7Bit(stream, byte) \
@@ -155,11 +154,11 @@ typedef struct CudaBitStream
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        byte=(stream.cache>>1) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data); \
+        byte=(stream.cache>>1) | ((fcache & \
                         (~((1<<(9-stream.bitpos))-1))) >> (9-stream.bitpos)); \
         stream.bitpos-=1; \
-        stream.cache=stream.fcache<<stream.bitpos; \
+        stream.cache=fcache<<stream.bitpos; \
     }
 
 
@@ -171,10 +170,10 @@ typedef struct CudaBitStream
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        byte=stream.cache | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data); \
+        byte=stream.cache | ((fcache & \
                        (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos)); \
-        stream.cache=stream.fcache<<stream.bitpos; \
+        stream.cache=fcache<<stream.bitpos; \
     }
 
 #define BitRead9Bit(stream, dbyte) \
@@ -186,134 +185,134 @@ typedef struct CudaBitStream
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        dbyte=((gruint32)stream.cache<<1) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data); \
+        dbyte=((gruint32)stream.cache<<1) | ((fcache & \
                        (~((1<<(7-stream.bitpos))-1))) >> (7-stream.bitpos));\
         ++stream.bitpos;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead10Bit(stream, dbyte) \
     if(stream.bitpos>5) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2);\
+        fcache=cudaRLdg(stream.data+=2);\
         stream.bitpos-=6;\
         dbyte=((gruint32)stream.cache<<2)|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        dbyte=((gruint32)stream.cache<<2) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data); \
+        dbyte=((gruint32)stream.cache<<2) | ((fcache & \
                        (~((1<<(6-stream.bitpos))-1))) >> (6-stream.bitpos));\
         stream.bitpos+=2;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead11Bit(stream, dbyte) \
     if(stream.bitpos>4) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2);\
+        fcache=cudaRLdg(stream.data+=2);\
         stream.bitpos-=5;\
         dbyte=((gruint32)stream.cache<<3)|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        dbyte=((gruint32)stream.cache<<3) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data); \
+        dbyte=((gruint32)stream.cache<<3) | ((fcache & \
                        (~((1<<(5-stream.bitpos))-1))) >> (5-stream.bitpos));\
         stream.bitpos+=3;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead12Bit(stream, dbyte) \
     if(stream.bitpos>3) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2);\
+        fcache=cudaRLdg(stream.data+=2);\
         stream.bitpos-=4;\
         dbyte=((gruint32)stream.cache<<4)|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        dbyte=((gruint32)stream.cache<<4) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data); \
+        dbyte=((gruint32)stream.cache<<4) | ((fcache & \
                        (~((1<<(4-stream.bitpos))-1))) >> (4-stream.bitpos));\
         stream.bitpos+=4;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead13Bit(stream, dbyte) \
     if(stream.bitpos>2) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2);\
+        fcache=cudaRLdg(stream.data+=2);\
         stream.bitpos-=3;\
         dbyte=((gruint32)stream.cache<<5)|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        dbyte=((gruint32)stream.cache<<5) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data); \
+        dbyte=((gruint32)stream.cache<<5) | ((fcache & \
                        (~((1<<(3-stream.bitpos))-1))) >> (3-stream.bitpos));\
         stream.bitpos+=5;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead14Bit(stream, dbyte) \
     if(stream.bitpos>1) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2);\
+        fcache=cudaRLdg(stream.data+=2);\
         stream.bitpos-=2;\
         dbyte=((gruint32)stream.cache<<6)|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        dbyte=((gruint32)stream.cache<<6) | ((stream.fcache & \
+        fcache=cudaRLdg(++stream.data); \
+        dbyte=((gruint32)stream.cache<<6) | ((fcache & \
                        (~((1<<(2-stream.bitpos))-1))) >> (2-stream.bitpos));\
         stream.bitpos+=6;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead15Bit(stream, dbyte) \
     if(stream.bitpos) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2);\
+        fcache=cudaRLdg(stream.data+=2);\
         --stream.bitpos;\
         dbyte=((gruint32)stream.cache<<7)|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(++stream.data); \
-        dbyte=((gruint32)stream.cache<<7) | ((stream.fcache & 0xFE) >> 1);\
+        fcache=cudaRLdg(++stream.data); \
+        dbyte=((gruint32)stream.cache<<7) | ((fcache & 0xFE) >> 1);\
         stream.bitpos=7;\
-        stream.cache=stream.fcache<<7;\
+        stream.cache=fcache<<7;\
     }
 
 #define BitRead16Bit(stream, dbyte) \
     if(stream.bitpos) \
     {\
-        stream.fcache=cudaRLdg(stream.data+=2);\
+        fcache=cudaRLdg(stream.data+=2);\
         dbyte=((gruint32)stream.cache<<8)|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     }\
     else\
     {\
@@ -332,149 +331,149 @@ typedef struct CudaBitStream
     }\
     else\
     {\
-        stream.fcache=cudaRLdg(stream.data+=2); \
+        fcache=cudaRLdg(stream.data+=2); \
         qbyte=((gruint32)stream.cache<<9) |\
               (cudaRLdg(stream.data-1)<<(stream.bitpos+1))|\
-              ((stream.fcache & (~((1<<(7-stream.bitpos))-1))) >> (7-stream.bitpos));\
+              ((fcache & (~((1<<(7-stream.bitpos))-1))) >> (7-stream.bitpos));\
         ++stream.bitpos;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead18Bit(stream, qbyte) \
     if(stream.bitpos>5) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=3);\
+        fcache=cudaRLdg(stream.data+=3);\
         stream.bitpos-=6;\
         qbyte=((gruint32)stream.cache<<10)|\
               ((cudaRLdg(stream.data-2))<<(8+stream.bitpos))|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2); \
+        fcache=cudaRLdg(stream.data+=2); \
         qbyte=((gruint32)stream.cache<<10) |\
               ((cudaRLdg(stream.data-1))<<(stream.bitpos+2))|\
-              ((stream.fcache & (~((1<<(6-stream.bitpos))-1))) >> (6-stream.bitpos));\
+              ((fcache & (~((1<<(6-stream.bitpos))-1))) >> (6-stream.bitpos));\
         stream.bitpos+=2;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead19Bit(stream, qbyte) \
     if(stream.bitpos>4) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=3);\
+        fcache=cudaRLdg(stream.data+=3);\
         stream.bitpos-=5;\
         qbyte=((gruint32)stream.cache<<11)|\
               ((cudaRLdg(stream.data-2))<<(8+stream.bitpos))|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2); \
+        fcache=cudaRLdg(stream.data+=2); \
         qbyte=((gruint32)stream.cache<<11) |\
               ((cudaRLdg(stream.data-1))<<(stream.bitpos+3))|\
-              ((stream.fcache & (~((1<<(5-stream.bitpos))-1))) >> (5-stream.bitpos));\
+              ((fcache & (~((1<<(5-stream.bitpos))-1))) >> (5-stream.bitpos));\
         stream.bitpos+=3;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead20Bit(stream, qbyte) \
     if(stream.bitpos>3) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=3);\
+        fcache=cudaRLdg(stream.data+=3);\
         stream.bitpos-=4;\
         qbyte=((gruint32)stream.cache<<12)|\
               ((cudaRLdg(stream.data-2))<<(8+stream.bitpos))|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2); \
+        fcache=cudaRLdg(stream.data+=2); \
         qbyte=((gruint32)stream.cache<<12) |\
               ((cudaRLdg(stream.data-1))<<(stream.bitpos+4))|\
-              ((stream.fcache & (~((1<<(4-stream.bitpos))-1))) >> (4-stream.bitpos));\
+              ((fcache & (~((1<<(4-stream.bitpos))-1))) >> (4-stream.bitpos));\
         stream.bitpos+=4;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead21Bit(stream, qbyte) \
     if(stream.bitpos>2) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=3);\
+        fcache=cudaRLdg(stream.data+=3);\
         stream.bitpos-=3;\
         qbyte=((gruint32)stream.cache<<13)|\
               ((cudaRLdg(stream.data-2))<<(8+stream.bitpos))|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2); \
+        fcache=cudaRLdg(stream.data+=2); \
         qbyte=((gruint32)stream.cache<<13) |\
               ((cudaRLdg(stream.data-1))<<(stream.bitpos+5))|\
-              ((stream.fcache & (~((1<<(3-stream.bitpos))-1))) >> (3-stream.bitpos));\
+              ((fcache & (~((1<<(3-stream.bitpos))-1))) >> (3-stream.bitpos));\
         stream.bitpos+=5;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead22Bit(stream, qbyte) \
     if(stream.bitpos>1) \
     { \
-        stream.fcache=cudaRLdg(stream.data+=3);\
+        fcache=cudaRLdg(stream.data+=3);\
         stream.bitpos-=2;\
         qbyte=((gruint32)stream.cache<<14)|\
               ((cudaRLdg(stream.data-2))<<(8+stream.bitpos))|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     } \
     else \
     { \
-        stream.fcache=cudaRLdg(stream.data+=2); \
+        fcache=cudaRLdg(stream.data+=2); \
         qbyte=((gruint32)stream.cache<<14) |\
               ((cudaRLdg(stream.data-1))<<(stream.bitpos+6))|\
-              ((stream.fcache & (~((1<<(2-stream.bitpos))-1))) >> (2-stream.bitpos));\
+              ((fcache & (~((1<<(2-stream.bitpos))-1))) >> (2-stream.bitpos));\
         stream.bitpos+=6;\
-        stream.cache=stream.fcache<<stream.bitpos;\
+        stream.cache=fcache<<stream.bitpos;\
     }
 
 #define BitRead23Bit(stream, qbyte)\
     if(stream.bitpos) \
     {\
-        stream.fcache=cudaRLdg(stream.data+=3);\
+        fcache=cudaRLdg(stream.data+=3);\
         --stream.bitpos;\
         qbyte=((gruint32)stream.cache<<15)|\
               ((cudaRLdg(stream.data-2))<<(8+stream.bitpos))|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     }\
     else\
     {\
-        stream.fcache=cudaRLdg(stream.data+=2);\
+        fcache=cudaRLdg(stream.data+=2);\
         qbyte=((gruint32)stream.cache<<15) |\
               ((cudaRLdg(stream.data-1))<<7)|\
-              ((stream.fcache & 0xFE)>>1);\
+              ((fcache & 0xFE)>>1);\
         stream.bitpos=7;\
-        stream.cache=stream.fcache<<7;\
+        stream.cache=fcache<<7;\
     }
 
 #define BitRead24Bit(stream, qbyte)\
     if(stream.bitpos) \
     {\
-        stream.fcache=cudaRLdg(stream.data+=3);\
+        fcache=cudaRLdg(stream.data+=3);\
         qbyte=((gruint32)stream.cache<<16)|\
               ((cudaRLdg(stream.data-2))<<(8+stream.bitpos))|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     }\
     else\
     {\
@@ -485,13 +484,13 @@ typedef struct CudaBitStream
 #define BitRead32Bit(stream, qbyte)\
     if(stream.bitpos) \
     {\
-        stream.fcache=cudaRLdg(stream.data+=4);\
+        fcache=cudaRLdg(stream.data+=4);\
         qbyte=((gruint32)stream.cache<<24)|\
               ((cudaRLdg(stream.data-3))<<(16+stream.bitpos))|\
               ((cudaRLdg(stream.data-2))<<(8+stream.bitpos))|\
               ((cudaRLdg(stream.data-1))<<stream.bitpos)|\
-              ((stream.fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
-        stream.cache=stream.fcache<<stream.bitpos;\
+              ((fcache & (~((1<<(8-stream.bitpos))-1)))>>(8-stream.bitpos));\
+        stream.cache=fcache<<stream.bitpos;\
     }\
     else\
     {\
@@ -510,201 +509,257 @@ __device__ __forceinline__ gruint32 GRReadUInt0(CudaBitStream &stream)
 
 __device__ __forceinline__ gruint32 GRReadUInt1(CudaBitStream &stream)
 {
-    BitReadBit(stream, stream.f2cache);
-    return (gruint32) stream.f2cache;
+    register gruint8 f2cache;
+    BitReadBit(stream, f2cache);
+    return (gruint32) f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt2(CudaBitStream &stream)
 {
-    BitRead2Bit(stream, stream.f2cache);
-    return (gruint32) stream.f2cache;
+    register gruint8 fcache, f2cache;
+    BitRead2Bit(stream, f2cache);
+    return (gruint32) f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt3(CudaBitStream &stream)
 {
-    BitRead3Bit(stream, stream.f2cache);
-    return (gruint32) stream.f2cache;
+    register gruint8 fcache, f2cache;
+    BitRead3Bit(stream, f2cache);
+    return (gruint32) f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt4(CudaBitStream &stream)
 {
-    BitRead4Bit(stream, stream.f2cache);
-    return (gruint32)stream.f2cache;
+    register gruint8 fcache, f2cache;
+    BitRead4Bit(stream, f2cache);
+    return (gruint32)f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt5(CudaBitStream &stream)
 {
-    BitRead5Bit(stream, stream.f2cache);
-    return (gruint32)stream.f2cache;
+    register gruint8 fcache, f2cache;
+    BitRead5Bit(stream, f2cache);
+    return (gruint32)f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt6(CudaBitStream &stream)
 {
-    BitRead6Bit(stream, stream.f2cache);
-    return (gruint32)stream.f2cache;
+    register gruint8 fcache, f2cache;
+    BitRead6Bit(stream, f2cache);
+    return (gruint32)f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt7(CudaBitStream &stream)
 {
-    BitRead7Bit(stream, stream.f2cache);
-    return (gruint32)stream.f2cache;
+    register gruint8 fcache, f2cache;
+    BitRead7Bit(stream, f2cache);
+    return (gruint32)f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt8(CudaBitStream &stream)
 {
-    BitRead8Bit(stream, stream.f2cache);
-    return (gruint32)stream.f2cache;
+    register gruint8 fcache, f2cache;
+    BitRead8Bit(stream, f2cache);
+    return (gruint32)f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt9(CudaBitStream &stream)
 {
-    BitRead9Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead9Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt10(CudaBitStream &stream)
 {
-    BitRead10Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead10Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt11(CudaBitStream &stream)
 {
-    BitRead11Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead11Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt12(CudaBitStream &stream)
 {
-    BitRead12Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead12Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt13(CudaBitStream &stream)
 {
-    BitRead13Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead13Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt14(CudaBitStream &stream)
 {
-    BitRead14Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead14Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt15(CudaBitStream &stream)
 {
-    BitRead15Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead15Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt16(CudaBitStream &stream)
 {
-    BitRead16Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead16Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt17(CudaBitStream &stream)
 {
-    BitRead17Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead17Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt18(CudaBitStream &stream)
 {
-    BitRead18Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead18Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt19(CudaBitStream &stream)
 {
-    BitRead19Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead19Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt20(CudaBitStream &stream)
 {
-    BitRead20Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead20Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt21(CudaBitStream &stream)
 {
-    BitRead21Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead21Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt22(CudaBitStream &stream)
 {
-    BitRead22Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead22Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt23(CudaBitStream &stream)
 {
-    BitRead23Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead23Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt24(CudaBitStream &stream)
 {
-    BitRead24Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead24Bit(stream, dcache);
+    return dcache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt25(CudaBitStream &stream)
 {
-    BitRead24Bit(stream, stream.dcache);
-    BitReadBit(stream, stream.f2cache);
-    return (stream.dcache<<1) | stream.f2cache;
+    register gruint32 dcache;
+    register gruint8 fcache, f2cache;
+    BitRead24Bit(stream, dcache);
+    BitReadBit(stream, f2cache);
+    return (dcache<<1) | f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt26(CudaBitStream &stream)
 {
-    BitRead24Bit(stream, stream.dcache);
-    BitRead2Bit(stream, stream.f2cache);
-    return (stream.dcache<<2) | stream.f2cache;
+    register gruint32 dcache;
+    register gruint8 fcache, f2cache;
+    BitRead24Bit(stream, dcache);
+    BitRead2Bit(stream, f2cache);
+    return (dcache<<2) | f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt27(CudaBitStream &stream)
 {
-    BitRead24Bit(stream, stream.dcache);
-    BitRead3Bit(stream, stream.f2cache);
-    return (stream.dcache<<3) | stream.f2cache;
+    register gruint32 dcache;
+    register gruint8 fcache, f2cache;
+    BitRead24Bit(stream, dcache);
+    BitRead3Bit(stream, f2cache);
+    return (dcache<<3) | f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt28(CudaBitStream &stream)
 {
-    BitRead24Bit(stream, stream.dcache);
-    BitRead4Bit(stream, stream.f2cache);
-    return (stream.dcache<<4) | stream.f2cache;
+    register gruint32 dcache;
+    register gruint8 fcache, f2cache;
+    BitRead24Bit(stream, dcache);
+    BitRead4Bit(stream, f2cache);
+    return (dcache<<4) | f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt29(CudaBitStream &stream)
 {
-    BitRead24Bit(stream, stream.dcache);
-    BitRead5Bit(stream, stream.f2cache);
-    return (stream.dcache<<5) | stream.f2cache;
+    register gruint32 dcache;
+    register gruint8 fcache, f2cache;
+    BitRead24Bit(stream, dcache);
+    BitRead5Bit(stream, f2cache);
+    return (dcache<<5) | f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt30(CudaBitStream &stream)
 {
-    BitRead24Bit(stream, stream.dcache);
-    BitRead6Bit(stream, stream.f2cache);
-    return (stream.dcache<<6) | stream.f2cache;
+    register gruint32 dcache;
+    register gruint8 fcache, f2cache;
+    BitRead24Bit(stream, dcache);
+    BitRead6Bit(stream, f2cache);
+    return (dcache<<6) | f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt31(CudaBitStream &stream)
 {
-    BitRead24Bit(stream, stream.dcache);
-    BitRead7Bit(stream, stream.f2cache);
-    return (stream.dcache<<7) | stream.f2cache;
+    register gruint32 dcache;
+    register gruint8 fcache, f2cache;
+    BitRead24Bit(stream, dcache);
+    BitRead7Bit(stream, f2cache);
+    return (dcache<<7) | f2cache;
 }
 
 __device__ __forceinline__ gruint32 GRReadUInt32(CudaBitStream &stream)
 {
-    BitRead32Bit(stream, stream.dcache);
-    return stream.dcache;
+    register gruint32 dcache;
+    register gruint8 fcache;
+    BitRead32Bit(stream, dcache);
+    return dcache;
 }
 
 #endif // FLAC_CUDA_BITSTREAM

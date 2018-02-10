@@ -49,8 +49,8 @@ __global__ void flac_cuda_find_frames(
         //No need to search
         return;
     }
-    uchar *startPos=data+startLength, *endPos,
-          *cache=headerCache+(threadIdx.x<<4);
+    register uchar *startPos=data+startLength, *endPos,
+                   *cache=headerCache+(threadIdx.x<<4);
     if(threadId<threadCount-1)
     {
         endPos=startPos+blockSize;
@@ -72,7 +72,7 @@ __global__ void flac_cuda_find_frames(
             cache[2]=cudaLdg(startPos[2]);
             cache[3]=cudaLdg(startPos[3]);
             //Pass the initial check, parse the header data.
-            gruint32 sampleRate=cudaSampleRate[cache[2] & 0x0F];
+            register gruint32 sampleRate=cudaSampleRate[cache[2] & 0x0F];
             frameData.blockSize=cudaBlockSize[(cache[2] & 0xF0)>>4];
             frameData.channel=cudaChannel[(cache[3] & 0xF0)>>4];
             frameData.bitsPerSample=cudaBps[(cache[3] & 0x0E)>>1];
@@ -81,10 +81,10 @@ __global__ void flac_cuda_find_frames(
             {
                 //No invalid value found, calculate the CRC-8 to check whether it is frame or not.
                 //Read UTF-8 length.
-                gruint8 utfByte=(cache[4]=cudaLdg(startPos[4]));
-                gruint32 headerSize= 4 + (utfByte < 0x80) + (utfByte > 0xBF) + (utfByte > 0xBF) + (utfByte > 0xDF) + 
+                register gruint8 utfByte=(cache[4]=cudaLdg(startPos[4]));
+                register gruint32 headerSize= 4 + (utfByte < 0x80) + (utfByte > 0xBF) + (utfByte > 0xBF) + (utfByte > 0xDF) + 
                                          (utfByte > 0xEF) + (utfByte > 0xF7) + (utfByte > 0xFB) + (utfByte == 0xFE),
-                         frameIndex;
+                                  frameIndex;
                 //Copy the data to the cache.
                 if(headerSize==5)
                 {
@@ -139,8 +139,8 @@ __global__ void flac_cuda_find_frames(
                     if(sampleRate==streamSampleRate)
                     {
                         //Calculate the CRC-8 for last checking.
-                        gruint8 crc8=0xF3, // Result of CRC-8 0xFF.
-                                crcPos=1;
+                        register gruint8 crc8=0xF3, // Result of CRC-8 0xFF.
+                                         crcPos=1;
                         while(crcPos<headerSize)
                         {
                             crc8=cudaFlacCrc8Table[crc8^cache[crcPos++]];

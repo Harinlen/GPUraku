@@ -41,7 +41,7 @@ __global__ void flac_cuda_restore_signal(
         //No need to decode.
         return;
     }
-    gruint32 blockSize=decodeData[threadId].blockSize, i, j;
+    register gruint32 blockSize=decodeData[threadId].blockSize, i, j;
     if(subFrameType.type==FLAC_SUBFRAME_CONSTANT)
     {
         grint32 cache=subFrameType.pcm[0];
@@ -61,7 +61,7 @@ __global__ void flac_cuda_restore_signal(
             return;
         }
         //Define the three level progression.
-        grint32 cache0, cache1, cache2, lastCache;
+        register grint32 cache0, cache1, cache2, lastCache;
         if(subFrameType.order==1)
         {
             lastCache=subFrameType.pcm[0];
@@ -133,7 +133,7 @@ __global__ void flac_cuda_restore_signal(
         return;
     }
     //LPC.
-    grint32 sum, shift=subFrameType.shift;
+    register grint32 sum, shift=subFrameType.shift;
     for(i=0; i<subFrameType.order; ++i)
     {
         cacheBuf[i]=subFrameType.pcm[i];
