@@ -39,10 +39,8 @@ __global__ void flac_cuda_find_frames(
     gruint8 streamBps)
 {
     __shared__ uchar headerCache[CudaThreadBlockSize<<4];
-    __shared__ CudaFrameDecode frameData[CudaThreadBlockSize];
     //Calculate the core index.
-    register int threadId=blockDim.x * blockIdx.x + threadIdx.x,
-                 sharedIndex=threadIdx.x;
+    register int threadId=blockDim.x * blockIdx.x + threadIdx.x;
     //Calculate the search area.
     size_t startLength=searchSize*threadId;
     //Check area border.
@@ -52,7 +50,7 @@ __global__ void flac_cuda_find_frames(
         return;
     }
     register uchar *startPos=data+startLength, *endPos,
-                   *cache=headerCache+(sharedIndex<<4);
+                   *cache=headerCache+(threadIdx.x<<4);
     if(threadId<threadCount-1)
     {
         endPos=startPos+searchSize;
@@ -151,27 +149,25 @@ __global__ void flac_cuda_find_frames(
                         if(crc8==cudaRLdg(startPos+headerSize))
                         {
                             //Frame approval.
-                            //Calculate the channel assignment.
-                            frameData[sharedIndex].blockSize=blockSize;
-                            frameData[sharedIndex].channel=channel;
-                            frameData[sharedIndex].channelAssignment=cudaChannelAss[(cache[3] & 0xF0)>>4];
-                            frameData[sharedIndex].bitsPerSample=bitsPerSample;
                             //Check bits per sample.
-                            if(frameData[sharedIndex].bitsPerSample==0)
+                            if(bitsPerSample==0)
                             {
                                 //Save the bps.
-                                frameData[sharedIndex].bitsPerSample=streamBps;
+                                bitsPerSample=streamBps;
                             }
+                            //Calculate the channel assignment.
+                            decodeData[frameIndex].blockSize=blockSize;
+                            decodeData[frameIndex].channel=channel;
+                            decodeData[frameIndex].channelAssignment=cudaChannelAss[(cache[3] & 0xF0)>>4];
+                            decodeData[frameIndex].bitsPerSample=bitsPerSample;
                             //Save the block size, which is the sample size.
                             frameSizes[frameIndex]=blockSize;
                             //Skip the data.
                             startPos+=(headerSize+1);
                             //Create the bitstream for decoding.
-                            frameData[sharedIndex].bitStream.data=startPos;
-                            frameData[sharedIndex].bitStream.cache=cudaRLdg(startPos);
-                            frameData[sharedIndex].bitStream.bitpos=0;
-                            //Write the frame data to the global memory.
-                            decodeData[frameIndex]=frameData[sharedIndex];
+                            decodeData[frameIndex].bitStream.data=startPos;
+                            decodeData[frameIndex].bitStream.cache=cudaRLdg(startPos);
+                            decodeData[frameIndex].bitStream.bitpos=0;
                             //Skip CRC-16 at end, sub frame start at the middle.
                             //Continue to next checking.
                             startPos+=2+channel;
