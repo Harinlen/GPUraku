@@ -26,7 +26,7 @@ __global__ void flac_cuda_restore_signal(
     __shared__ grint32 sampleBuffer[CudaThreadBlockSize<<4],
                        coefsBuffer[CudaThreadBlockSize<<4];
     //Calculate the core index.
-    int threadId=blockDim.x * blockIdx.x + threadIdx.x;
+    register int threadId=blockDim.x * blockIdx.x + threadIdx.x;
     if(threadId >= frameCount)
     {
         return;
@@ -34,7 +34,7 @@ __global__ void flac_cuda_restore_signal(
     grint32 *cacheBuf=sampleBuffer+(threadIdx.x<<4),
             *coefsBuf=coefsBuffer+(threadIdx.x<<4);
     //Get the sub frame type.
-    CudaSubFrameType subFrameType=subFrame[threadId];
+    register CudaSubFrameType subFrameType=subFrame[threadId];
     //Check sub frame type.
     if(subFrameType.type==FLAC_SUBFRAME_VERBATIM)
     {
@@ -44,7 +44,7 @@ __global__ void flac_cuda_restore_signal(
     register gruint32 blockSize=decodeData[threadId].blockSize, i, j;
     if(subFrameType.type==FLAC_SUBFRAME_CONSTANT)
     {
-        grint32 cache=subFrameType.pcm[0];
+        register grint32 cache=subFrameType.pcm[0];
         //Copy the first data to the rest of the samples.
         i=1;
         while(i<blockSize)
@@ -92,8 +92,8 @@ __global__ void flac_cuda_restore_signal(
         else if(subFrameType.order==3)
         {
             //Apply the algorithm.
-            grint32 temp1=subFrameType.pcm[1],
-                    lastCache=subFrameType.pcm[2];
+            register grint32 temp1=subFrameType.pcm[1];
+            lastCache=subFrameType.pcm[2];
             cache0=lastCache-(temp1<<1)+subFrameType.pcm[0];
             cache1=lastCache-temp1;
             i=3;
@@ -108,10 +108,10 @@ __global__ void flac_cuda_restore_signal(
         }
         else if(subFrameType.order==4)
         {
-            grint32 temp0=subFrameType.pcm[0], 
-                    temp1=subFrameType.pcm[1], 
-                    temp2=subFrameType.pcm[2], 
-                    lastCache=subFrameType.pcm[3];
+            register grint32 temp0=subFrameType.pcm[0], 
+                             temp1=subFrameType.pcm[1], 
+                             temp2=subFrameType.pcm[2];
+            lastCache=subFrameType.pcm[3];
             //Apply the algorithm.
             cache0=lastCache-(temp2<<1)-
                         temp2+(temp1<<1)+
