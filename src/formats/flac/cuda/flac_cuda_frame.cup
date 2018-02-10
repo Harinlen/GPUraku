@@ -82,8 +82,8 @@ __global__ void flac_cuda_find_frames(
                 //No invalid value found, calculate the CRC-8 to check whether it is frame or not.
                 //Read UTF-8 length.
                 gruint8 utfByte=(cache[4]=cudaLdg(startPos[4]));
-                gruint32 headerSize= 5 + (utfByte > 0xBF) + (utfByte > 0xDF) + (utfByte > 0xF0) + 
-                                         (utfByte > 0xF7) + (utfByte > 0xFB) + (utfByte == 0xFE),
+                gruint32 headerSize= 4 + (utfByte < 0x80) + (utfByte > 0xBF) + (utfByte > 0xBF) + (utfByte > 0xDF) + 
+                                         (utfByte > 0xEF) + (utfByte > 0xF7) + (utfByte > 0xFB) + (utfByte == 0xFE),
                          frameIndex;
                 //Copy the data to the cache.
                 if(headerSize==5)

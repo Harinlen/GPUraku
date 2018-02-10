@@ -182,8 +182,7 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
     //Allocate the start position.
     gruint64 blockCount=(flacUser->frameCount+CudaThreadBlockSize-1)/CudaThreadBlockSize;
     //Find all the frames.
-    //Decode the frame header, initialized the bit stream to the start position 
-    //of the sub frame.
+    //Decode the frame header, initialized the bit stream to the start position of sub frames.
     flac_cuda_find_frames<<<blockCount, CudaThreadBlockSize>>>(
         flacCuda->cudaData, 
         flacUser->frameDataSize,
@@ -196,12 +195,6 @@ void flac_cuda_decode(GRFlacDecodeUser *flacUser,
         flacUser->streamInfo.sampleRate, 
         flacUser->streamInfo.channels, 
         flacUser->streamInfo.bitsPerSample);
-    //gr_cuda_memcpy_to_host(
-    //    frameSizes, flacCuda->cudaFramePos, flacUser->frameSizeLength);
-    //for(size_t i=0; i<flacUser->frameCount; ++i)
-    //{
-    //    printf("%lu\t%lu\n", i, frameSizes[i]);
-    //}
     //Loop, decode sub frame for each channel.
     for(gruint8 i=0; i<flacUser->streamInfo.channels; ++i)
     {
