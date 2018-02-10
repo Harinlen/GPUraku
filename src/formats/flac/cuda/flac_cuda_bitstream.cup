@@ -41,30 +41,35 @@ typedef struct CudaBitStream
 
 #define BitReadRice0(stream, rice) \
     rice=0; \
-    while(!(stream.cache & 0x80)) \
+    register gruint8 cache=stream.cache, bitpos=stream.bitpos;\
+    register uchar *data=stream.data;\
+    while(!(cache & 0x80)) \
     {\
-        if(stream.bitpos==7)\
+        if(bitpos==7)\
         {\
-            stream.cache=cudaRLdg(++stream.data);\
-            stream.bitpos=0;\
+            cache=cudaRLdg(++data);\
+            bitpos=0;\
         }\
         else\
         {\
-            stream.cache<<=1;\
-            ++stream.bitpos;\
+            cache<<=1;\
+            ++bitpos;\
         }\
         ++rice;\
     }\
-    if(stream.bitpos==7)\
+    if(bitpos==7)\
     {\
-        stream.cache=cudaRLdg(++stream.data);\
-        stream.bitpos=0;\
+        cache=cudaRLdg(++data);\
+        bitpos=0;\
     }\
     else\
     {\
-        stream.cache<<=1;\
-        ++stream.bitpos;\
-    }
+        cache<<=1;\
+        ++bitpos;\
+    }\
+    stream.bitpos=bitpos;\
+    stream.cache=cache;\
+    stream.data=data\
     
 #define BitRead2Bit(stream, byte) \
     if(stream.bitpos<6) \

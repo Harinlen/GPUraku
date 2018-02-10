@@ -65,7 +65,6 @@ __device__ __forceinline__ void flac_cuda_decode_residual(
             {
                 //Read the rice encoding data.
                 BitReadRice0(stream, ones);
-                // printf("%u\n", ones);
                 //Read the data.
                 lsbs=riceReader(stream);
                 //Process the residual.
