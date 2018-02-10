@@ -31,7 +31,7 @@ __global__ void flac_cuda_find_frames(
     size_t *frameSizes,
     CudaFrameDecode *decodeData,
     size_t lastPos,
-    size_t blockSize,
+    size_t searchSize,
     gruint32 threadCount,
     gruint32 frameCount,
     gruint32 streamSampleRate,
@@ -39,10 +39,12 @@ __global__ void flac_cuda_find_frames(
     gruint8 streamBps)
 {
     __shared__ uchar headerCache[CudaThreadBlockSize<<4];
+    __shared__ CudaFrameDecode frameData[CudaThreadBlockSize];
     //Calculate the core index.
-    int threadId=blockDim.x * blockIdx.x + threadIdx.x;
+    register int threadId=blockDim.x * blockIdx.x + threadIdx.x,
+                 sharedIndex=threadIdx.x;
     //Calculate the search area.
-    size_t startLength=blockSize*threadId;
+    size_t startLength=searchSize*threadId;
     //Check area border.
     if(startLength>lastPos)
     {
@@ -50,10 +52,10 @@ __global__ void flac_cuda_find_frames(
         return;
     }
     register uchar *startPos=data+startLength, *endPos,
-                   *cache=headerCache+(threadIdx.x<<4);
+                   *cache=headerCache+(sharedIndex<<4);
     if(threadId<threadCount-1)
     {
-        endPos=startPos+blockSize;
+        endPos=startPos+searchSize;
     }
     else
     {
@@ -66,18 +68,19 @@ __global__ void flac_cuda_find_frames(
         if(startPos[0]==0xFF && (startPos[1] & 0xFE)==0xF8 &&
             (startPos[3] & 0x01)==0x00)
         {
-            CudaFrameDecode frameData;
+            //CudaBitStream bitStream;
+            //grint32 *channelPcm[2];
             //Read the data to shared memory cache.
             cache[1]=cudaLdg(startPos[1]);
             cache[2]=cudaLdg(startPos[2]);
             cache[3]=cudaLdg(startPos[3]);
             //Pass the initial check, parse the header data.
             register gruint32 sampleRate=cudaSampleRate[cache[2] & 0x0F];
-            frameData.blockSize=cudaBlockSize[(cache[2] & 0xF0)>>4];
-            frameData.channel=cudaChannel[(cache[3] & 0xF0)>>4];
-            frameData.bitsPerSample=cudaBps[(cache[3] & 0x0E)>>1];
-            if(frameData.blockSize && sampleRate && frameData.channel==streamChannels
-                && (frameData.bitsPerSample==0 || frameData.bitsPerSample==streamBps))
+            register gruint32 blockSize=cudaBlockSize[(cache[2] & 0xF0)>>4];
+            register gruint8 channel=cudaChannel[(cache[3] & 0xF0)>>4], 
+                             bitsPerSample=cudaBps[(cache[3] & 0x0E)>>1];
+            if(blockSize && sampleRate && channel==streamChannels
+                && (bitsPerSample==0 || bitsPerSample==streamBps))
             {
                 //No invalid value found, calculate the CRC-8 to check whether it is frame or not.
                 //Read UTF-8 length.
@@ -106,19 +109,19 @@ __global__ void flac_cuda_find_frames(
                 if(frameIndex<frameCount)
                 {
                     //Check the block size skip.
-                    if(frameData.blockSize==8)
+                    if(blockSize==8)
                     {
                         // 8-bit
-                        frameData.blockSize=(gruint32)(cache[headerSize]=cudaLdg(startPos[headerSize]))+1;
+                        blockSize=(gruint32)(cache[headerSize]=cudaLdg(startPos[headerSize]))+1;
                         ++headerSize;
                     }
-                    else if(frameData.blockSize==16)
+                    else if(blockSize==16)
                     {
                         // 16-bit BE
                         cache[headerSize]=cudaLdg(startPos[headerSize]);
                         cache[headerSize+1]=cudaLdg(startPos[headerSize+1]);
-                        frameData.blockSize=(cache[headerSize]<<8)|cache[headerSize+1];
-                        ++frameData.blockSize;
+                        blockSize=(cache[headerSize]<<8)|cache[headerSize+1];
+                        ++blockSize;
                         headerSize+=2;
                     }
                     //Check for sample rate fetch mark value.
@@ -149,26 +152,29 @@ __global__ void flac_cuda_find_frames(
                         {
                             //Frame approval.
                             //Calculate the channel assignment.
-                            frameData.channelAssignment=cudaChannelAss[(cache[3] & 0xF0)>>4];
+                            frameData[sharedIndex].blockSize=blockSize;
+                            frameData[sharedIndex].channel=channel;
+                            frameData[sharedIndex].channelAssignment=cudaChannelAss[(cache[3] & 0xF0)>>4];
+                            frameData[sharedIndex].bitsPerSample=bitsPerSample;
                             //Check bits per sample.
-                            if(frameData.bitsPerSample==0)
+                            if(frameData[sharedIndex].bitsPerSample==0)
                             {
                                 //Save the bps.
-                                frameData.bitsPerSample=streamBps;
+                                frameData[sharedIndex].bitsPerSample=streamBps;
                             }
                             //Save the block size, which is the sample size.
-                            frameSizes[frameIndex]=frameData.blockSize;
+                            frameSizes[frameIndex]=blockSize;
                             //Skip the data.
                             startPos+=(headerSize+1);
                             //Create the bitstream for decoding.
-                            frameData.bitStream.data=startPos;
-                            frameData.bitStream.cache=cudaRLdg(startPos);
-                            frameData.bitStream.bitpos=0;
+                            frameData[sharedIndex].bitStream.data=startPos;
+                            frameData[sharedIndex].bitStream.cache=cudaRLdg(startPos);
+                            frameData[sharedIndex].bitStream.bitpos=0;
                             //Write the frame data to the global memory.
-                            decodeData[frameIndex]=frameData;
+                            decodeData[frameIndex]=frameData[sharedIndex];
                             //Skip CRC-16 at end, sub frame start at the middle.
                             //Continue to next checking.
-                            startPos+=2+frameData.channel;
+                            startPos+=2+channel;
                             continue;
                         }
                     }

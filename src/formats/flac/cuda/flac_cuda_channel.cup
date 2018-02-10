@@ -31,10 +31,10 @@ __global__ void flac_cuda_restore_signal(
     {
         return;
     }
-    grint32 *cacheBuf=sampleBuffer+(threadIdx.x<<4),
-            *coefsBuf=coefsBuffer+(threadIdx.x<<4);
+    register grint32 *cacheBuf=sampleBuffer+(threadIdx.x<<4),
+                     *coefsBuf=coefsBuffer+(threadIdx.x<<4);
     //Get the sub frame type.
-    register CudaSubFrameType subFrameType=subFrame[threadId];
+    CudaSubFrameType subFrameType=subFrame[threadId];
     //Check sub frame type.
     if(subFrameType.type==FLAC_SUBFRAME_VERBATIM)
     {
@@ -116,8 +116,7 @@ __global__ void flac_cuda_restore_signal(
             cache0=lastCache-(temp2<<1)-
                         temp2+(temp1<<1)+
                         temp1-temp0;
-            cache1=lastCache-(temp2<<1)+
-                        temp1;
+            cache1=lastCache-(temp2<<1)+temp1;
             cache2=lastCache-temp2;
             i=4;
             while(i<blockSize)
@@ -140,19 +139,24 @@ __global__ void flac_cuda_restore_signal(
         coefsBuf[i]=subFrameType.coefs[i];
     }
     //Loop for all the sample size.
-    for(i=subFrameType.order; i<blockSize; ++i)
+    i=subFrameType.order;
+    while(i<blockSize)
     {
         sum=0;
+        j=0;
         //Calculate the difference.
-        for(j=0; j<subFrameType.order; ++j)
+        while(j<subFrameType.order)
         {
             sum+=coefsBuf[j]*cacheBuf[j];
             cacheBuf[j]=cacheBuf[j+1];
+            ++j;
         }
         //Apply the different, set the value to samples.
         subFrameType.pcm[i]=
             (cacheBuf[subFrameType.order-1]=
                 subFrameType.pcm[i]+(sum>>shift));
+        //Move to next position.
+        ++i;
     }
 }
 
