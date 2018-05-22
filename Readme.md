@@ -1,5 +1,5 @@
 # GPUraku Drei Mk.X
-Copyright © 2017-2018 Haolei Ye and Eric McCreath
+Copyright (C) 2017-2018 Haolei Ye and Eric McCreath
 
 ## Overview
 GPUraku is a CUDA powered audio decoding framework.

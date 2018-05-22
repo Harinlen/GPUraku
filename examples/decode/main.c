@@ -30,6 +30,7 @@
 #define print_error_message(errorInfo, exeName) \
     printf("\n%s: %s\n", exeName, errorInfo);
 
+// Get the system defined system time.
 static inline long long getSystemTime()
 {
     struct timeb t;
@@ -53,6 +54,7 @@ int main(int argc, char *argv[])
         exit_error_usage("incorrect parameter found", argv[0]);
         exit(EXIT_FAILURE);
     }
+    
     // Initial all the codecs.
     if(!gr_init_all_codecs())
     {
@@ -60,6 +62,7 @@ int main(int argc, char *argv[])
         print_error_message("failed to initialize codecs", argv[0]);
         exit(EXIT_FAILURE);
     }
+    
     // Load the file content.
     GRDecodeData *decoderContext=NULL;
     GRInputFile *inputFile=gr_open_input_file(argv[1]);
@@ -70,6 +73,7 @@ int main(int argc, char *argv[])
         printf("%s\n", argv[1]);
         exit(EXIT_FAILURE);
     }
+    
     //Find the decoder for the file.
     printf("Finding the decoder...");
     // Find the decoder for the input file.
@@ -82,6 +86,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     printf("done\n");
+    
     // Prepare the pointer for the PCM audio data.
     GRPcmData *pcmData=NULL;
     // Allocate the memory for PCM.
@@ -97,6 +102,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     printf("done\n");
+    
     // Start to decode the data.
     printf("Start decoding...");
     long long endTime, startTime=getSystemTime();
@@ -106,10 +112,12 @@ int main(int argc, char *argv[])
     // Clean the memory.
     gr_free_decode_data(&decoderContext);
     gr_close_input_file(&inputFile);
+    
     //Check for WAV dump option.
     if(argc==3)
     {
         printf("Dump WAV...");
+        
         //We need to dump the WAV.
         GREncodeData *encoderContext=NULL;
         if(!gr_find_encoder("wav", pcmData, &encoderContext))
@@ -120,6 +128,7 @@ int main(int argc, char *argv[])
             gr_free_pcm(&pcmData);
             exit(EXIT_FAILURE);
         }
+        
         //Start to encode WAV.
         unsigned char *rawData=NULL;
         size_t rawDataSize;
@@ -130,6 +139,7 @@ int main(int argc, char *argv[])
         //Free the raw data.
         free(rawData);
     }
+    
     //Free the PCM data.
     gr_free_pcm(&pcmData);
     return EXIT_SUCCESS;

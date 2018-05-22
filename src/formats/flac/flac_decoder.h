@@ -20,12 +20,11 @@
 
 #include "gpuraku_decoder.h"
 
+// All the folloing functions are internal functions which matches the port 
+// define of the decoder.
 BOOL flac_check(GRInputFile *file, void **user);
-
 BOOL flac_allocate_pcm(void *user, GRPcmData **pcmData);
-
 void flac_decode(void *user, GRPcmData *pcmData);
-
 void flac_free_user(void **user);
 
 static GRDecoder flac_decoder = {

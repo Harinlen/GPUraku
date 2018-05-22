@@ -23,15 +23,40 @@
  * files.
  */
 
+/*
+ * Usage: gr_cuda_malloc(part, sizeof(int)*length);
+ * Allocate memory on CUDA devices
+ * Returns: 0       - Failed to allocate the memory on CUDA device.
+ *          1       - Successfully allocate memory on the CUDA device to the 
+ *                    pointer.
+ */
 #define gr_cuda_malloc(target, size) \
     (cudaMalloc(&(target), size) == cudaSuccess)
 
+/*
+ * Usage: gr_cuda_memcpy_to_device(device_target, host_target, sizeof(int)*len);
+ * Copy the data from host to CUDA device.
+ * Returns: 0       - Failed to copy the target from host to device.
+ *          1       - Successfully copy the specific length content to device.
+ */
 #define gr_cuda_memcpy_to_device(dest, src, size) \
     (cudaMemcpy(dest, src, size, cudaMemcpyHostToDevice) == cudaSuccess)
 
+/*
+ * Usage: gr_cuda_memcpy_to_host(host_target, device_target, sizeof(int)*len);
+ * Copy the data from CUDA device to host.
+ * Returns: 0       - Failed to copy the target from device to host.
+ *          1       - Successfully copy the specific length content to host.
+ */
 #define gr_cuda_memcpy_to_host(dest, src, size) \
     (cudaMemcpy(dest, src, size, cudaMemcpyDeviceToHost) == cudaSuccess)
 
+/*
+ * Usage: gr_cuda_free(device_target);
+ * Free a target on the CUDA device.
+ * Returns: 0       - Failed to copy the target from device to host.
+ *          1       - Successfully copy the specific length content to host.
+ */
 #define gr_cuda_free(target) \
     cudaFree(&(target)); (*target)=NULL
 

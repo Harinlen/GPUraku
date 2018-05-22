@@ -23,7 +23,7 @@ __global__ void flac_cuda_left_assignment(
     gruint32 blockSize)
 {
     //Calculate the index.
-    int index=blockDim.x * blockIdx.x + threadIdx.x;
+    register int index=blockDim.x * blockIdx.x + threadIdx.x;
     if(index < blockSize)
     {
         //The right channel is not the original data.
@@ -36,7 +36,7 @@ __global__ void flac_cuda_right_assignment(
     grint32 * __restrict__ rightChannel,
     gruint32 blockSize)
 {
-    int index=blockDim.x * blockIdx.x + threadIdx.x;
+    register int index=blockDim.x * blockIdx.x + threadIdx.x;
     if(index < blockSize)
     {
         //The left channel is not the original data.
@@ -49,7 +49,7 @@ __global__ void flac_cuda_mid_assignment(
     grint32 * __restrict__ rightChannel,
     gruint32 blockSize)
 {
-    int index=blockDim.x * blockIdx.x + threadIdx.x;
+    register int index=blockDim.x * blockIdx.x + threadIdx.x;
     register grint32 side, mid;
     if(index < blockSize)
     {

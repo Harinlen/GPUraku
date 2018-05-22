@@ -28,16 +28,16 @@
 #define TRUE                1
 
 // Size-dependent types (architechture-dependent byte order)
-typedef signed char         grint8;     /* 8 bit signed */
-typedef unsigned char       gruint8;    /* 8 bit unsigned */
-typedef short               grint16;    /* 16 bit signed */
+typedef signed char         grint8;     /* 8 bit signed    */
+typedef unsigned char       gruint8;    /* 8 bit unsigned  */
+typedef short               grint16;    /* 16 bit signed   */
 typedef unsigned short      gruint16;   /* 16 bit unsigned */
-typedef int                 grint32;    /* 32 bit signed */
+typedef int                 grint32;    /* 32 bit signed   */
 typedef unsigned int        gruint32;   /* 32 bit unsigned */
-typedef long long           grint64;    /* 64 bit signed */
+typedef long long           grint64;    /* 64 bit signed   */
 typedef unsigned long long  gruint64;   /* 64 bit unsigned */
 
-typedef grint64             grlonglong; /* long long */
+typedef grint64             grlonglong; /* long long          */
 typedef gruint64            grulonglong;/* long long unsigned */
 
 typedef double              grreal;     /* real */
